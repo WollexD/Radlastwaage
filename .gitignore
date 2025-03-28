@@ -1,2 +1,6 @@
-*/config.h
+#Mac Info ausschliessen
 MAC.txt
+*/config.h
+
+#Ordner Libs ausschliessen
+libraries
