@@ -2,16 +2,19 @@
 #include <WiFi.h>
 #include "config.h"  //MAC Adressen
 
+//Anzeige eines Confi screens wenn eine Waage noch ein anderes Status/Confi Flag sendet
+
 typedef struct data {
   int waagenNummer;
-  int gewicht;
+  long gewicht;
+  int statusFlag;
   long timestamp;
 } data;
 
 uint8_t myAddress[6];
 
 data waggenMsg;
-data waagenDaten[4] = { 0, 0, 0 };
+data waagenDaten[4] = { 0, 0, 0, 0 };
 
 void messageReceived(const esp_now_recv_info* info, const uint8_t* incomingData, int len) {
   // Prüfen, ob die MAC-Adresse in der Liste ist
@@ -42,6 +45,7 @@ void messageReceived(const esp_now_recv_info* info, const uint8_t* incomingData,
 
   waagenDaten[waggenMsg.waagenNummer].waagenNummer = waggenMsg.waagenNummer;
   waagenDaten[waggenMsg.waagenNummer].gewicht = waggenMsg.gewicht;
+  waagenDaten[waggenMsg.waagenNummer].statusFlag = waggenMsg.statusFlag;
   waagenDaten[waggenMsg.waagenNummer].timestamp = waggenMsg.timestamp;
 }
 
