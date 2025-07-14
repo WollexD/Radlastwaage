@@ -1,13 +1,13 @@
 #include <esp_now.h>
 #include <WiFi.h>
 #include "config.h"  //MAC Adressen
-#include <Wire.h> 
+#include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 //Anzeige eines Confi screens wenn eine Waage noch ein anderes Status/Confi Flag sendet
-LiquidCrystal_I2C lcd(0x27,20,4);  // set the LCD address to 0x27 for a 16 chars and 2 line display
+LiquidCrystal_I2C lcd(0x27, 20, 4);  // set the LCD address to 0x27 for a 16 chars and 2 line display
 
 typedef struct data {
-  int waagenNummer;
+  DeviceIndex waagenNummer;
   long gewicht;
   int statusFlag;
   long timestamp;
@@ -16,7 +16,7 @@ typedef struct data {
 uint8_t myAddress[6];
 
 data waggenMsg;
-data waagenDaten[4] = { 0, 0, 0, 0 };
+data waagenDaten[4] = { LV, LH, RV, RH };
 
 void messageReceived(const esp_now_recv_info* info, const uint8_t* incomingData, int len) {
   // Prüfen, ob die MAC-Adresse in der Liste ist
@@ -36,7 +36,7 @@ void messageReceived(const esp_now_recv_info* info, const uint8_t* incomingData,
     Serial.println("⚠ Unbekannte MAC-Adresse! Nachricht ignoriert.");
     return;
   }
-  
+
   memcpy(&waggenMsg, incomingData, sizeof(waggenMsg));
 
   // Weiche Sicherung, falls waagenNummer außerhalb des Arrays liegt
@@ -44,6 +44,18 @@ void messageReceived(const esp_now_recv_info* info, const uint8_t* incomingData,
     Serial.println("⚠ Ungültige Waagen-Nummer!");
     return;
   }
+
+  // Serial.print("Vergleiche mit erwartetem Gerät (");
+  // switch (myRole) {
+  //   case LV: Serial.print("LV"); break;
+  //   case LH: Serial.print("LH"); break;
+  //   case RV: Serial.print("RV"); break;
+  //   case RH: Serial.print("RH"); break;
+  //   case MASTER: Serial.print("MASTER"); break;
+  // }
+  // Serial.println(")");
+
+
 
   waagenDaten[waggenMsg.waagenNummer].waagenNummer = waggenMsg.waagenNummer;
   waagenDaten[waggenMsg.waagenNummer].gewicht = waggenMsg.gewicht;
@@ -65,7 +77,7 @@ void setup() {
   }
 
   esp_now_register_recv_cb(messageReceived);
-  lcd.init();                      // initialize the lcd 
+  lcd.init();  // initialize the lcd
   lcd.backlight();
   lcd.clear();
 }
@@ -80,7 +92,7 @@ void loop() {
     Serial.print("Zeitstempel: ");
     Serial.println(waagenDaten[i].timestamp);
     Serial.println();
-    lcd.setCursor(0,i);
+    lcd.setCursor(0, i);
     lcd.print("Gewicht in g: ");
     lcd.print(waagenDaten[i].gewicht);
   }

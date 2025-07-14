@@ -11,7 +11,6 @@
 //Nachrichten aus Calibration Funktion in Zahlen übersetzen und im Master hinterlegen
 
 #include <esp_now.h>
-//#include <esp_system.h>
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <HX711.h>
@@ -28,11 +27,41 @@ Preferences EEPROMDATA;
 esp_now_peer_info_t peerInfo;
 
 typedef struct data {
-  int waagenNummer;
+  DeviceIndex waagenNummer;
   long gewicht;
   int statusFlag;
   long timestamp;
 } data;
+
+const char* deviceIndexToString(DeviceIndex index) {
+  switch (index) {
+    case LV: return "LV";
+    case LH: return "LH";
+    case RV: return "RV";
+    case RH: return "RH";
+    case MASTER: return "MASTER";
+    default: return "UNKNOWN";
+  }
+}
+
+DeviceIndex getDeviceRole(uint8_t* actualMAC) {
+  for (int i = 0; i < sizeof(deviceAddresses) / sizeof(deviceAddresses[0]); i++) {
+    bool match = true;
+    for (int j = 0; j < 6; j++) {
+      if (actualMAC[j] != deviceAddresses[i][j]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) {
+      return static_cast<DeviceIndex>(i);
+    }
+  }
+
+  // Wenn keine Übereinstimmung gefunden wurde
+  return static_cast<DeviceIndex>(-1);  // oder z. B. ein spezielles UNKNOWN
+}
+
 
 //StatusFlag Roadmap
 
@@ -40,9 +69,7 @@ typedef struct data {
 //100 Kalibrierung nötig
 //110 Kalibrierung Start
 
-DeviceIndex myRole = RH;  // z. B. LV, LH, RV, RH, MASTER
-
-
+DeviceIndex myRole;  // LV, LH, RV, RH, MASTER
 data myMessage;
 HX711 myscale;
 //  adjust pins if needed.
@@ -50,7 +77,10 @@ uint8_t dataPin = 17;
 uint8_t clockPin = 16;
 uint8_t tasterPin = 19;
 
-float weightfromscale = -9999;
+float weightfromscale = 0;
+float valueCounter = 0;
+long currentTime = millis();
+long lastTransmitTime = currentTime;
 
 bool compareMACs(uint8_t* mac1, uint8_t* mac2) {
   for (int i = 0; i < 6; i++) {
@@ -69,6 +99,8 @@ void printMAC(uint8_t* mac) {
   }
   Serial.println("}");
 }
+
+
 
 void messageSent(const uint8_t* macAddr, esp_now_send_status_t status) {
   // Serial.print("Send status: ");
@@ -158,22 +190,18 @@ void setup() {
   }
 
   uint8_t actualMAC[6];
-  esp_wifi_get_mac(WIFI_IF_STA, actualMAC); 
+  esp_wifi_get_mac(WIFI_IF_STA, actualMAC);
   Serial.print("Aktuelle MAC: ");
   printMAC(actualMAC);
 
-  Serial.print("Vergleiche mit erwartetem Gerät (");
-  switch (myRole) {
-    case LV: Serial.print("LV"); break;
-    case LH: Serial.print("LH"); break;
-    case RV: Serial.print("RV"); break;
-    case RH: Serial.print("RH"); break;
-    case MASTER: Serial.print("MASTER"); break;
-  }
-  Serial.println(")");
+  myRole = getDeviceRole(actualMAC);
+  Serial.print("Erkannte Rolle: ");
+  Serial.println(deviceIndexToString(myRole));
 
   Serial.print("Erwartete MAC: ");
   printMAC(deviceAddresses[myRole]);
+
+
 
   if (compareMACs(actualMAC, deviceAddresses[myRole])) {
     Serial.println("✅ MAC passt zur Rolle!");
@@ -224,9 +252,8 @@ void setup() {
 }
 
 void loop() {
+  //-------Auswertung Taster-----------
   TasterEvent event = oneButton.update();
-
-
   switch (event) {
     case KURZER_DRUCK:
       myscale.tare();
@@ -250,17 +277,26 @@ void loop() {
     default:
       break;
   }
+  //-------Auswertung Taster-----------
 
+  //-------Gewicht Auslesen------------
   if (myscale.is_ready()) {
-    weightfromscale = myscale.get_units();
+    weightfromscale += myscale.get_units();
+    valueCounter++;
   }
-  // Serial.print("UNITS: ");
-  // Serial.println(weightfromscale);
 
-  myMessage.waagenNummer = 0;
-  myMessage.gewicht = weightfromscale;
+  //-------Nachricht "zusammenbauen"---
+  myMessage.waagenNummer = myRole;
+  myMessage.gewicht = weightfromscale/valueCounter;
   myMessage.timestamp = millis();
   myMessage.statusFlag = 0;
-  sendeDaten();
-  //delay(3000);
+  //-------Nachricht Senden------------
+  currentTime = millis();
+  if (currentTime > lastTransmitTime + 100){
+    sendeDaten();
+    lastTransmitTime = currentTime;
+    weightfromscale = 0;
+    valueCounter = 0;
+  }
+  Serial.println(valueCounter);
 }
