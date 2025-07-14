@@ -1,8 +1,10 @@
 #include <esp_now.h>
 #include <WiFi.h>
 #include "config.h"  //MAC Adressen
-
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
 //Anzeige eines Confi screens wenn eine Waage noch ein anderes Status/Confi Flag sendet
+LiquidCrystal_I2C lcd(0x27,20,4);  // set the LCD address to 0x27 for a 16 chars and 2 line display
 
 typedef struct data {
   int waagenNummer;
@@ -63,9 +65,13 @@ void setup() {
   }
 
   esp_now_register_recv_cb(messageReceived);
+  lcd.init();                      // initialize the lcd 
+  lcd.backlight();
+  lcd.clear();
 }
 
 void loop() {
+  lcd.clear();
   for (int i = 0; i < 4; i++) {
     Serial.print("Waage Possition :");
     Serial.println(waagenDaten[i].waagenNummer);
@@ -74,6 +80,9 @@ void loop() {
     Serial.print("Zeitstempel: ");
     Serial.println(waagenDaten[i].timestamp);
     Serial.println();
+    lcd.setCursor(0,i);
+    lcd.print("Gewicht in g: ");
+    lcd.print(waagenDaten[i].gewicht);
   }
   Serial.println();
   delay(1000);

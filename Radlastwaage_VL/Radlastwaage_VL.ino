@@ -11,7 +11,9 @@
 //Nachrichten aus Calibration Funktion in Zahlen übersetzen und im Master hinterlegen
 
 #include <esp_now.h>
+//#include <esp_system.h>
 #include <WiFi.h>
+#include <esp_wifi.h>
 #include <HX711.h>
 #include <Preferences.h>
 #include <TasterControl.h>
@@ -38,6 +40,9 @@ typedef struct data {
 //100 Kalibrierung nötig
 //110 Kalibrierung Start
 
+DeviceIndex myRole = RH;  // z. B. LV, LH, RV, RH, MASTER
+
+
 data myMessage;
 HX711 myscale;
 //  adjust pins if needed.
@@ -45,13 +50,33 @@ uint8_t dataPin = 17;
 uint8_t clockPin = 16;
 uint8_t tasterPin = 19;
 
-void messageSent(const uint8_t *macAddr, esp_now_send_status_t status) {
-  Serial.print("Send status: ");
-  if (status == ESP_NOW_SEND_SUCCESS) {
-    Serial.println("Success");
-  } else {
-    Serial.println("Error");
+float weightfromscale = -9999;
+
+bool compareMACs(uint8_t* mac1, uint8_t* mac2) {
+  for (int i = 0; i < 6; i++) {
+    if (mac1[i] != mac2[i]) return false;
   }
+  return true;
+}
+
+void printMAC(uint8_t* mac) {
+  Serial.print("{");
+  for (int i = 0; i < 6; i++) {
+    Serial.print("0x");
+    if (mac[i] < 16) Serial.print("0");
+    Serial.print(mac[i], HEX);
+    if (i < 5) Serial.print(", ");
+  }
+  Serial.println("}");
+}
+
+void messageSent(const uint8_t* macAddr, esp_now_send_status_t status) {
+  // Serial.print("Send status: ");
+  // if (status == ESP_NOW_SEND_SUCCESS) {
+  //   Serial.println("Success");
+  // } else {
+  //   Serial.println("Error");
+  // }
 }
 
 void calibrate() {
@@ -113,7 +138,7 @@ void calibrate() {
 
 //Methode zum Senden der Daten!
 void sendeDaten() {  // Sende Daten an den Empfänger
-  esp_now_send(MasterAddress, (uint8_t *)&myMessage, sizeof(myMessage));
+  esp_now_send(MasterAddress, (uint8_t*)&myMessage, sizeof(myMessage));
 }
 
 void setup() {
@@ -131,6 +156,31 @@ void setup() {
     Serial.println("ESPNow Init fail");
     return;
   }
+
+  uint8_t actualMAC[6];
+  esp_wifi_get_mac(WIFI_IF_STA, actualMAC); 
+  Serial.print("Aktuelle MAC: ");
+  printMAC(actualMAC);
+
+  Serial.print("Vergleiche mit erwartetem Gerät (");
+  switch (myRole) {
+    case LV: Serial.print("LV"); break;
+    case LH: Serial.print("LH"); break;
+    case RV: Serial.print("RV"); break;
+    case RH: Serial.print("RH"); break;
+    case MASTER: Serial.print("MASTER"); break;
+  }
+  Serial.println(")");
+
+  Serial.print("Erwartete MAC: ");
+  printMAC(deviceAddresses[myRole]);
+
+  if (compareMACs(actualMAC, deviceAddresses[myRole])) {
+    Serial.println("✅ MAC passt zur Rolle!");
+  } else {
+    Serial.println("❌ MAC passt NICHT zur Rolle!");
+  }
+
 
   esp_now_register_send_cb(messageSent);
 
@@ -179,6 +229,7 @@ void loop() {
 
   switch (event) {
     case KURZER_DRUCK:
+      myscale.tare();
       Serial.println("Kurzer Druck");
       break;
     case DOPPELKLICK:
@@ -199,14 +250,17 @@ void loop() {
     default:
       break;
   }
-  float weightfromscale = myscale.get_units();
-  Serial.print("UNITS: ");
-  Serial.println(weightfromscale);
+
+  if (myscale.is_ready()) {
+    weightfromscale = myscale.get_units();
+  }
+  // Serial.print("UNITS: ");
+  // Serial.println(weightfromscale);
 
   myMessage.waagenNummer = 0;
   myMessage.gewicht = weightfromscale;
   myMessage.timestamp = millis();
   myMessage.statusFlag = 0;
-  //sendeDaten();
+  sendeDaten();
   //delay(3000);
 }
