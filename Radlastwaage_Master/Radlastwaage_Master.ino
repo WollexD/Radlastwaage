@@ -1,5 +1,6 @@
 #include <esp_now.h>
 #include <WiFi.h>
+#include <esp_wifi.h>
 #include "config.h"  //MAC Adressen
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -134,7 +135,7 @@ void HintergrundWaage() {
   lcd.setCursor(18, 1);
   lcd.print("kg");
   lcd.setCursor(0, 2);
-  lcd.print("VR");
+  lcd.print("HL");
   lcd.setCursor(7, 2);
   lcd.print("kg|VtlVA");
   lcd.setCursor(19, 2);
@@ -145,6 +146,28 @@ void HintergrundWaage() {
   lcd.print("kg|VtlHA");
   lcd.setCursor(19, 3);
   lcd.print("%");
+}
+
+void ProzentAnzeigen() {
+  float gewichtVorne = waagenDaten[0].gewicht + waagenDaten[1].gewicht;
+  float gewichtHinten = waagenDaten[2].gewicht + waagenDaten[3].gewicht;
+  float gewichtGesamt = gewichtVorne + gewichtHinten;
+  float VtlVA = (gewichtVorne / gewichtGesamt) * 100;
+  float VtlHA = (gewichtHinten / gewichtGesamt) * 100;
+
+  lcd.setCursor(15, 2);
+  lcd.print("    ");
+  lcd.setCursor(15, 2);
+  char ausgabe4A[5];
+  formatVtl4(VtlVA, ausgabe4A);
+  lcd.print(ausgabe4A);
+
+  lcd.setCursor(15, 3);
+  lcd.print("    ");
+  lcd.setCursor(15, 3);
+  char ausgabe4B[5];
+  formatVtl4(VtlHA, ausgabe4B);
+  lcd.print(ausgabe4B);
 }
 
 void Standardansicht() {
@@ -162,11 +185,31 @@ void Standardansicht() {
   char ausgabe6[7];
   formatWeight6(waagenDaten[0].gewicht + waagenDaten[1].gewicht + waagenDaten[2].gewicht + waagenDaten[3].gewicht, ausgabe6);
   lcd.print(ausgabe6);
-
+  ProzentAnzeigen();
   HintergrundWaage();
 }
 
 // Funktion: Float -> "000,0"-String
+void formatVtl4(float Vtl, char* buffer) {
+  // Überlaufbehandlung
+  if (Vtl < 0) {
+    strcpy(buffer, "XX,X");
+    return;
+  }
+  if (Vtl > 99.9) {
+    strcpy(buffer, "XX,X");
+    return;
+  }
+
+  // Rundung auf eine Nachkommastelle
+  int Vtl_int = (int)(Vtl * 10.0 + (Vtl >= 0 ? 0.5 : -0.5));
+
+  // Ganzzahl- und Nachkommastellen extrahieren
+  int vorn = abs(Vtl_int / 10);
+  int hinten = abs(Vtl_int % 10);
+
+  sprintf(buffer, "%2d,%1d", vorn, hinten);  // z. B. " 12,3"
+}
 void formatWeight5(float weight, char* buffer) {
   weight = weight / 1000;  //Umrechnung von Gramm in kg
   // Überlaufbehandlung
@@ -223,7 +266,16 @@ void formatWeight6(float weight, char* buffer) {
     sprintf(buffer, "%4d,%1d", vorn, hinten);  // z. B. " 12,3"
   }
 }
-
+void printMAC(uint8_t* mac) {
+  Serial.print("{");
+  for (int i = 0; i < 6; i++) {
+    Serial.print("0x");
+    if (mac[i] < 16) Serial.print("0");
+    Serial.print(mac[i], HEX);
+    if (i < 5) Serial.print(", ");
+  }
+  Serial.println("}");
+}
 void setup() {
   memcpy(myAddress, MasterAddress, sizeof(myAddress));
   Serial.begin(115200);
@@ -236,6 +288,10 @@ void setup() {
     Serial.println("ESPNow Init fail");
     return;
   }
+  uint8_t actualMAC[6];
+  esp_wifi_get_mac(WIFI_IF_STA, actualMAC);
+  Serial.print("Aktuelle MAC: ");
+  printMAC(actualMAC);
 
   esp_now_register_recv_cb(messageReceived);
   lcd.init();  // initialize the lcd
@@ -244,8 +300,10 @@ void setup() {
 }
 
 void loop() {
+  waagenDaten[0].gewicht = 5000;
   if (waagenDaten[3].statusFlag > 0) {
     calibrierungsText(waagenDaten[3].statusFlag);
+    lcd.clear();
   } else {
     for (int i = 0; i < 4; i++) {
       Serial.print("Waage Possition :");
@@ -258,6 +316,6 @@ void loop() {
     }
 
     Standardansicht();
-    delay(100);
   }
+  delay(100);
 }
