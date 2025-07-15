@@ -67,8 +67,12 @@ DeviceIndex getDeviceRole(uint8_t* actualMAC) {
 
 //0 alles OK (kalibriert und tara)
 //100 Kalibrierung nötig
-//110 Kalibrierung Start
-//111
+//110 Remove all weigt from Scale + Press Button to Continue
+//111 Waage wird genullt
+//112 Waage ist genullt + Press Button to Continue
+//113 Kalibrierungsgewicht plazieren + Press Button to Continue
+//114 Waage wird Kalibriert
+//115 Waage ist Kalibriert + Press Button um Vorgang zu beenden!
 
 DeviceIndex myRole;  // LV, LH, RV, RH, MASTER
 data myMessage;
@@ -86,6 +90,8 @@ float aktuellesGewicht = 0;
 
 long currentTime = millis();
 long lastTransmitTime = currentTime;
+
+int currentStatus = 0;
 
 bool compareMACs(uint8_t* mac1, uint8_t* mac2) {
   for (int i = 0; i < 6; i++) {
@@ -116,12 +122,13 @@ void messageSent(const uint8_t* macAddr, esp_now_send_status_t status) {
 
 void calibrate() {
   Serial.println("\n\n\n=======CALIBRATION Start ==========\n");
-  
-  myMessage.statusFlag = 110;  //Remove all weigt from Scale + Press Button to Continue
+  currentStatus = 110;
+  myMessage.statusFlag = currentStatus;  //Remove all weigt from Scale + Press Button to Continue
   sendeDaten();
   while (!digitalRead(tasterPin)) yield();
 
-  myMessage.statusFlag = 111;  //Waage wird genullt
+  currentStatus = 111;
+  myMessage.statusFlag = currentStatus;  //Waage wird genullt
   sendeDaten();
   delay(1000);
   //  average 20 measurements.
@@ -131,20 +138,23 @@ void calibrate() {
   Serial.println(offset);
   delay(1000);
 
-  myMessage.statusFlag = 112;  //Waage ist genullt + Press Button to Continue
+  currentStatus = 112;
+  myMessage.statusFlag = currentStatus;  //Waage ist genullt + Press Button to Continue
   sendeDaten();
   while (!digitalRead(tasterPin)) yield();
 
-  myMessage.statusFlag = 113;  //Kalibrierungsgewicht plazieren + Press Button to Continue
+  currentStatus = 113;
+  myMessage.statusFlag = currentStatus;  //Kalibrierungsgewicht plazieren + Press Button to Continue
   sendeDaten();
   delay(2000);
   while (!digitalRead(tasterPin)) yield();
 
-  myMessage.statusFlag = 114;  //Waage wird Kalibriert
+  currentStatus = 114;
+  myMessage.statusFlag = currentStatus;  //Waage wird Kalibriert
   sendeDaten();
   delay(1000);
 
-  float weight = 640; //<--- Hier Kalibrierungsgewicht anpassen
+  float weight = 640;  //<--- Hier Kalibrierungsgewicht anpassen
   Serial.print("WEIGHT: ");
   Serial.println(weight);
   myscale.calibrate_scale(weight, 20);
@@ -153,15 +163,17 @@ void calibrate() {
   Serial.print("SCALE:  ");
   Serial.println(scale, 6);
 
- 
+
   EEPROMDATA.putFloat("offset", offset);  // Wert speichern
   EEPROMDATA.putFloat("scale", scale);    // Wert speichern
-  
-  myMessage.statusFlag = 115;  //Waage ist Kalibriert + Press Button um Vorgang zu beenden!
+
+  currentStatus = 115;
+  myMessage.statusFlag = currentStatus;  //Waage ist Kalibriert + Press Button um Vorgang zu beenden!
   sendeDaten();
   while (!digitalRead(tasterPin)) yield();
-  
+
   Serial.println("\n=======CALIBRATION ENDE ===========");
+  currentStatus = 0;
 }
 
 //Methode zum Senden der Daten!
@@ -224,12 +236,18 @@ void setup() {
 
   bool sclInit = EEPROMDATA.isKey("scaleInit");  // Test for the existence
                                                  // of the "already initialized" key.
+//------Default Nachricht bauen-------
+  myMessage.waagenNummer = myRole;
+  myMessage.gewicht = 0;
+  myMessage.timestamp = millis();
+  myMessage.statusFlag = currentStatus;
 
   //Initialisieren der Waage beim ersten Start bzw. nach Rücksetzen des Init Flags
   if (sclInit == false) {
     EEPROMDATA.end();                            // close the namespace in RO mode and...
     EEPROMDATA.begin("savedSettings", RW_MODE);  //  reopen it in RW mode.
-    myMessage.statusFlag = 100;
+    currentStatus = 100;
+    myMessage.statusFlag = currentStatus;
     sendeDaten();
     calibrate();
     EEPROMDATA.putBool("scaleInit", true);
@@ -266,6 +284,7 @@ void loop() {
       break;
     case EXTRA_LANGER_DRUCK:
       Serial.println("Extra langer Druck");
+      currentStatus = 100;
       EEPROMDATA.end();                            // close the namespace in RO mode and...
       EEPROMDATA.begin("savedSettings", RW_MODE);  //  reopen it in RW mode.
       EEPROMDATA.remove("scaleInit");
@@ -316,7 +335,7 @@ void loop() {
   myMessage.waagenNummer = myRole;
   myMessage.gewicht = aktuellesGewicht;
   myMessage.timestamp = millis();
-  myMessage.statusFlag = 0;
+  myMessage.statusFlag = currentStatus;
 
   //-------Nachricht Senden------------
   currentTime = millis();

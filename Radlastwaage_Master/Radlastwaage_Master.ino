@@ -63,6 +63,167 @@ void messageReceived(const esp_now_recv_info* info, const uint8_t* incomingData,
   waagenDaten[waggenMsg.waagenNummer].timestamp = waggenMsg.timestamp;
 }
 
+void calibrierungsText(int status) {
+  lcd.clear();
+
+  //"--------------------"
+  //"
+  switch (status) {
+    case 100:
+      lcd.setCursor(1, 1);  //Spalte , Zeile
+      lcd.print("Calibration REQ.");
+      break;
+    case 110:
+      lcd.setCursor(0, 0);  //Spalte , Zeile
+      lcd.print("Remove all weigt");
+      lcd.setCursor(0, 1);  //Spalte , Zeile
+      lcd.print("from Scale + Press");
+      lcd.setCursor(0, 2);  //Spalte , Zeile
+      lcd.print("Button to Continue");
+      break;
+    case 111:
+      lcd.setCursor(0, 1);  //Spalte , Zeile
+      lcd.print("Waage wird genullt");
+      break;
+    case 112:
+      lcd.setCursor(0, 0);  //Spalte , Zeile
+      lcd.print("Waage ist genullt");
+      lcd.setCursor(0, 1);  //Spalte , Zeile
+      lcd.print("Press");
+      lcd.setCursor(0, 2);  //Spalte , Zeile
+      lcd.print("Button to Continue");
+      break;
+    case 113:
+      lcd.setCursor(0, 0);  //Spalte , Zeile
+      lcd.print("Kalibrierungsgewicht");
+      lcd.setCursor(0, 1);  //Spalte , Zeile
+      lcd.print("plazieren + Press");
+      lcd.setCursor(0, 2);  //Spalte , Zeile
+      lcd.print("Button to Continue");
+      break;
+    case 114:
+      lcd.setCursor(0, 0);  //Spalte , Zeile
+      lcd.print("Waage  ");
+      lcd.setCursor(0, 1);  //Spalte , Zeile
+      lcd.print("wird");
+      lcd.setCursor(0, 2);  //Spalte , Zeile
+      lcd.print("Kalibriert");
+      break;
+    case 115:
+      lcd.setCursor(0, 0);  //Spalte , Zeile
+      lcd.print("Waage ist Kalibriert");
+      lcd.setCursor(0, 1);  //Spalte , Zeile
+      lcd.print("Press Button to");
+      lcd.setCursor(0, 2);  //Spalte , Zeile
+      lcd.print("End Calibration!");
+      break;
+    default:
+      break;
+  }
+}
+
+void HintergrundWaage() {
+  lcd.setCursor(0, 0);
+  lcd.print("VL");
+  lcd.setCursor(7, 0);
+  lcd.print("kg|Gesamt:");
+  lcd.setCursor(0, 1);
+  lcd.print("VR");
+  lcd.setCursor(7, 1);
+  lcd.print("kg|");
+  lcd.setCursor(18, 1);
+  lcd.print("kg");
+  lcd.setCursor(0, 2);
+  lcd.print("VR");
+  lcd.setCursor(7, 2);
+  lcd.print("kg|VtlVA");
+  lcd.setCursor(19, 2);
+  lcd.print("%");
+  lcd.setCursor(0, 3);
+  lcd.print("HR");
+  lcd.setCursor(7, 3);
+  lcd.print("kg|VtlHA");
+  lcd.setCursor(19, 3);
+  lcd.print("%");
+}
+
+void Standardansicht() {
+  for (int i = 0; i < 4; i++) {
+    lcd.setCursor(2, i);
+    lcd.print("     ");
+    lcd.setCursor(2, i);
+    char ausgabe5[6];
+    formatWeight5(waagenDaten[i].gewicht, ausgabe5);
+    lcd.print(ausgabe5);
+  }
+  lcd.setCursor(12, 1);
+  lcd.print("      ");
+  lcd.setCursor(12, 1);
+  char ausgabe6[7];
+  formatWeight6(waagenDaten[0].gewicht + waagenDaten[1].gewicht + waagenDaten[2].gewicht + waagenDaten[3].gewicht, ausgabe6);
+  lcd.print(ausgabe6);
+
+  HintergrundWaage();
+}
+
+// Funktion: Float -> "000,0"-String
+void formatWeight5(float weight, char* buffer) {
+  weight = weight / 1000;  //Umrechnung von Gramm in kg
+  // Überlaufbehandlung
+  if (weight < -99.9) {
+    strcpy(buffer, "-XX,X");
+    return;
+  }
+  if (weight > 999.9) {
+    strcpy(buffer, "XXX,X");
+    return;
+  }
+
+  // Rundung auf eine Nachkommastelle
+  int gewicht_int = (int)(weight * 10.0 + (weight >= 0 ? 0.5 : -0.5));
+
+  // Ganzzahl- und Nachkommastellen extrahieren
+  int vorn = abs(gewicht_int / 10);
+  int hinten = abs(gewicht_int % 10);
+
+  // Formatieren abhängig von Vorzeichen
+  if (weight < 0) {
+    // Platz für '-' berücksichtigen (max. -99,9)
+    sprintf(buffer, "-%2d,%1d", vorn, hinten);  // z. B. -12,3 → "-12,3"
+  } else {
+    // Rechtsbündig mit Leerzeichen für positive Werte
+    sprintf(buffer, "%3d,%1d", vorn, hinten);  // z. B. " 12,3"
+  }
+}
+void formatWeight6(float weight, char* buffer) {
+  weight = weight / 1000;  //Umrechnung von Gramm in kg
+  // Überlaufbehandlung
+  if (weight < -999.9) {
+    strcpy(buffer, "-XXX,X");
+    return;
+  }
+  if (weight > 9999.9) {
+    strcpy(buffer, "XXXX,X");
+    return;
+  }
+
+  // Rundung auf eine Nachkommastelle
+  int gewicht_int = (int)(weight * 10.0 + (weight >= 0 ? 0.5 : -0.5));
+
+  // Ganzzahl- und Nachkommastellen extrahieren
+  int vorn = abs(gewicht_int / 10);
+  int hinten = abs(gewicht_int % 10);
+
+  // Formatieren abhängig von Vorzeichen
+  if (weight < 0) {
+    // Platz für '-' berücksichtigen (max. -99,9)
+    sprintf(buffer, "-%3d,%1d", vorn, hinten);  // z. B. -12,3 → "-12,3"
+  } else {
+    // Rechtsbündig mit Leerzeichen für positive Werte
+    sprintf(buffer, "%4d,%1d", vorn, hinten);  // z. B. " 12,3"
+  }
+}
+
 void setup() {
   memcpy(myAddress, MasterAddress, sizeof(myAddress));
   Serial.begin(115200);
@@ -83,19 +244,20 @@ void setup() {
 }
 
 void loop() {
-  lcd.clear();
-  for (int i = 0; i < 4; i++) {
-    Serial.print("Waage Possition :");
-    Serial.println(waagenDaten[i].waagenNummer);
-    Serial.print("Gewicht in g: ");
-    Serial.println(waagenDaten[i].gewicht);
-    Serial.print("Zeitstempel: ");
-    Serial.println(waagenDaten[i].timestamp);
-    Serial.println();
-    lcd.setCursor(0, i);
-    lcd.print("Gewicht in g: ");
-    lcd.print(waagenDaten[i].gewicht);
+  if (waagenDaten[3].statusFlag > 0) {
+    calibrierungsText(waagenDaten[3].statusFlag);
+  } else {
+    for (int i = 0; i < 4; i++) {
+      Serial.print("Waage Possition :");
+      Serial.println(waagenDaten[i].waagenNummer);
+      Serial.print("Gewicht in g: ");
+      Serial.println(waagenDaten[i].gewicht);
+      Serial.print("Zeitstempel: ");
+      Serial.println(waagenDaten[i].timestamp);
+      Serial.println();
+    }
+
+    Standardansicht();
+    delay(100);
   }
-  Serial.println();
-  delay(1000);
 }
