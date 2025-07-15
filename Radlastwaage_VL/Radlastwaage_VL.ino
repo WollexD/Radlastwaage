@@ -68,6 +68,7 @@ DeviceIndex getDeviceRole(uint8_t* actualMAC) {
 //0 alles OK (kalibriert und tara)
 //100 Kalibrierung nötig
 //110 Kalibrierung Start
+//111
 
 DeviceIndex myRole;  // LV, LH, RV, RH, MASTER
 data myMessage;
@@ -77,8 +78,12 @@ uint8_t dataPin = 17;
 uint8_t clockPin = 16;
 uint8_t tasterPin = 19;
 
-float weightfromscale = 0;
-float valueCounter = 0;
+const int MEDIAN_SIZE = 9;
+float medianBuffer[MEDIAN_SIZE] = { 0 };
+int medianIndex = 0;
+int valuesCollected = 0;
+float aktuellesGewicht = 0;
+
 long currentTime = millis();
 long lastTransmitTime = currentTime;
 
@@ -100,8 +105,6 @@ void printMAC(uint8_t* mac) {
   Serial.println("}");
 }
 
-
-
 void messageSent(const uint8_t* macAddr, esp_now_send_status_t status) {
   // Serial.print("Send status: ");
   // if (status == ESP_NOW_SEND_SUCCESS) {
@@ -112,43 +115,36 @@ void messageSent(const uint8_t* macAddr, esp_now_send_status_t status) {
 }
 
 void calibrate() {
-  Serial.println("\n\nCALIBRATION\n===========");
-  Serial.println("remove all weight from the loadcell");
-
-  myMessage.statusFlag = 110;
+  Serial.println("\n\n\n=======CALIBRATION Start ==========\n");
+  
+  myMessage.statusFlag = 110;  //Remove all weigt from Scale + Press Button to Continue
   sendeDaten();
-  //  flush Serial input
-  while (Serial.available()) Serial.read();
+  while (!digitalRead(tasterPin)) yield();
 
-  Serial.println("and press enter\n");
-  while (Serial.available() == 0)
-    ;
-
-  Serial.println("Determine zero weight offset");
+  myMessage.statusFlag = 111;  //Waage wird genullt
+  sendeDaten();
+  delay(1000);
   //  average 20 measurements.
   myscale.tare(20);
   int32_t offset = myscale.get_offset();
-
   Serial.print("OFFSET: ");
   Serial.println(offset);
-  Serial.println();
+  delay(1000);
 
+  myMessage.statusFlag = 112;  //Waage ist genullt + Press Button to Continue
+  sendeDaten();
+  while (!digitalRead(tasterPin)) yield();
 
-  Serial.println("place a weight on the loadcell");
-  //  flush Serial input
-  while (Serial.available()) Serial.read();
+  myMessage.statusFlag = 113;  //Kalibrierungsgewicht plazieren + Press Button to Continue
+  sendeDaten();
+  delay(2000);
+  while (!digitalRead(tasterPin)) yield();
 
-  Serial.println("enter the weight in (whole) grams and press enter");
-  uint32_t weight = 0;
-  while (Serial.peek() != '\n') {
-    if (Serial.available()) {
-      char ch = Serial.read();
-      if (isdigit(ch)) {
-        weight *= 10;
-        weight = weight + (ch - '0');
-      }
-    }
-  }
+  myMessage.statusFlag = 114;  //Waage wird Kalibriert
+  sendeDaten();
+  delay(1000);
+
+  float weight = 640; //<--- Hier Kalibrierungsgewicht anpassen
   Serial.print("WEIGHT: ");
   Serial.println(weight);
   myscale.calibrate_scale(weight, 20);
@@ -157,15 +153,15 @@ void calibrate() {
   Serial.print("SCALE:  ");
   Serial.println(scale, 6);
 
-  Serial.print("\nuse myscale.set_offset(");
-  Serial.print(offset);
-  Serial.print("); and myscale.set_scale(");
-  Serial.print(scale, 6);
-  Serial.print(");\n");
-  Serial.println("in the setup of your project");
+ 
   EEPROMDATA.putFloat("offset", offset);  // Wert speichern
   EEPROMDATA.putFloat("scale", scale);    // Wert speichern
-  Serial.println("\n\n");
+  
+  myMessage.statusFlag = 115;  //Waage ist Kalibriert + Press Button um Vorgang zu beenden!
+  sendeDaten();
+  while (!digitalRead(tasterPin)) yield();
+  
+  Serial.println("\n=======CALIBRATION ENDE ===========");
 }
 
 //Methode zum Senden der Daten!
@@ -175,7 +171,7 @@ void sendeDaten() {  // Sende Daten an den Empfänger
 
 void setup() {
   //Input Pinmode
-  oneButton.begin(tasterPin);  // Kein Pullup, da externer Pulldown verwendet wird
+  oneButton.begin(tasterPin);
 
   Serial.begin(115200);
   delay(1000);
@@ -202,12 +198,12 @@ void setup() {
   printMAC(deviceAddresses[myRole]);
 
 
-
   if (compareMACs(actualMAC, deviceAddresses[myRole])) {
     Serial.println("✅ MAC passt zur Rolle!");
   } else {
     Serial.println("❌ MAC passt NICHT zur Rolle!");
   }
+
 
 
   esp_now_register_send_cb(messageSent);
@@ -277,26 +273,55 @@ void loop() {
     default:
       break;
   }
-  //-------Auswertung Taster-----------
 
   //-------Gewicht Auslesen------------
+  //-----+Median über Werte bilden---
   if (myscale.is_ready()) {
-    weightfromscale += myscale.get_units();
-    valueCounter++;
+    float gewicht = myscale.get_units();
+    if (isfinite(gewicht)) {
+      // Neuer Wert in Ringpuffer
+      medianBuffer[medianIndex] = gewicht;
+      medianIndex = (medianIndex + 1) % MEDIAN_SIZE;
+
+      // Mitzählen wie viele Werte gesammelt wurden (max. MEDIAN_SIZE)
+      if (valuesCollected < MEDIAN_SIZE) {
+        valuesCollected++;
+      }
+
+      // Kopie der gültigen Werte zum Sortieren
+      float sorted[MEDIAN_SIZE];
+      memcpy(sorted, medianBuffer, sizeof(sorted));
+
+      // Sortieren (nur so viele wie gesammelt wurden)
+      for (int i = 0; i < valuesCollected - 1; i++) {
+        for (int j = i + 1; j < valuesCollected; j++) {
+          if (sorted[j] < sorted[i]) {
+            float temp = sorted[i];
+            sorted[i] = sorted[j];
+            sorted[j] = temp;
+          }
+        }
+      }
+
+      // Median bestimmen
+      if (valuesCollected % 2 == 1) {
+        aktuellesGewicht = sorted[valuesCollected / 2];
+      } else {
+        aktuellesGewicht = (sorted[valuesCollected / 2 - 1] + sorted[valuesCollected / 2]) / 2.0;
+      }
+    }
   }
 
   //-------Nachricht "zusammenbauen"---
   myMessage.waagenNummer = myRole;
-  myMessage.gewicht = weightfromscale/valueCounter;
+  myMessage.gewicht = aktuellesGewicht;
   myMessage.timestamp = millis();
   myMessage.statusFlag = 0;
+
   //-------Nachricht Senden------------
   currentTime = millis();
-  if (currentTime > lastTransmitTime + 100){
+  if (currentTime > lastTransmitTime + 100) {
     sendeDaten();
     lastTransmitTime = currentTime;
-    weightfromscale = 0;
-    valueCounter = 0;
   }
-  Serial.println(valueCounter);
 }
