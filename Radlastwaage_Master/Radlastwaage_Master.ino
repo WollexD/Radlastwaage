@@ -4,8 +4,15 @@
 #include "config.h"  //MAC Adressen
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <TasterControl.h>
 //Anzeige eines Confi screens wenn eine Waage noch ein anderes Status/Confi Flag sendet
 LiquidCrystal_I2C lcd(0x27, 20, 4);  // set the LCD address to 0x27 for a 16 chars and 2 line display
+TasterControl oneButton;
+
+uint8_t tasterPin = 15;
+int ansichtCounter = 0;
+int backGroundCounterStandard = 60;
+int backGroundCounter = 0;
 
 typedef struct data {
   DeviceIndex waagenNummer;
@@ -15,6 +22,84 @@ typedef struct data {
 } data;
 
 uint8_t myAddress[6];
+
+byte heart[8] = {
+  B00000,
+  B00000,
+  B01010,
+  B10101,
+  B10001,
+  B01010,
+  B00100,
+  B00000
+};
+
+byte leftUP[8] = {
+  B00000,
+  B00000,
+  B00111,
+  B00100,
+  B00100,
+  B00100,
+  B00100,
+  B00100
+};
+
+byte leftdown[8] = {
+  B00100,
+  B00100,
+  B00100,
+  B00100,
+  B00100,
+  B00111,
+  B00000,
+  B00000
+};
+
+byte rightUP[8] = {
+  B00000,
+  B00000,
+  B11100,
+  B00100,
+  B00100,
+  B00100,
+  B00100,
+  B00100
+};
+
+byte rightdown[8] = {
+  B00100,
+  B00100,
+  B00100,
+  B00100,
+  B00100,
+  B11100,
+  B00000,
+  B00000
+};
+
+byte upper[8] = {
+  B00000,
+  B00000,
+  B11111,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000
+};
+
+byte lower[8] = {
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B11111,
+  B00000,
+  B00000
+};
+
 
 data waggenMsg;
 data waagenDaten[4] = { LV, LH, RV, RH };
@@ -186,7 +271,29 @@ void Standardansicht() {
   formatWeight6(waagenDaten[0].gewicht + waagenDaten[1].gewicht + waagenDaten[2].gewicht + waagenDaten[3].gewicht, ausgabe6);
   lcd.print(ausgabe6);
   ProzentAnzeigen();
-  HintergrundWaage();
+
+  backGroundCounter--;
+  if (backGroundCounter < 0) {
+    HintergrundWaage();
+    backGroundCounter = backGroundCounterStandard;
+  }
+}
+
+void AutoHintergrund() {
+  lcd.setCursor(8,0);
+  lcd.write(byte(2));
+  lcd.write(byte(1));
+  lcd.write(byte(1));
+  lcd.write(byte(4));
+  lcd.setCursor(8, 1);
+  lcd.print("|  |");
+  lcd.setCursor(8, 2);
+  lcd.print("|  |");
+  lcd.setCursor(8, 3);
+  lcd.write(byte(3));
+  lcd.write(byte(6));
+  lcd.write(byte(6));
+  lcd.write(byte(5));
 }
 
 // Funktion: Float -> "000,0"-String
@@ -276,7 +383,9 @@ void printMAC(uint8_t* mac) {
   }
   Serial.println("}");
 }
+
 void setup() {
+  oneButton.begin(tasterPin);
   memcpy(myAddress, MasterAddress, sizeof(myAddress));
   Serial.begin(115200);
   delay(1000);
@@ -294,28 +403,56 @@ void setup() {
   printMAC(actualMAC);
 
   esp_now_register_recv_cb(messageReceived);
+
+  lcd.createChar(0, heart);
+  lcd.createChar(1, upper);
+  lcd.createChar(2, leftUP);
+  lcd.createChar(3, leftdown);
+  lcd.createChar(4, rightUP);
+  lcd.createChar(5, rightdown);
+  lcd.createChar(6, lower);
+
   lcd.init();  // initialize the lcd
   lcd.backlight();
   lcd.clear();
 }
 
 void loop() {
+  //-------Auswertung Taster-----------
+  TasterEvent event = oneButton.update();
+  switch (event) {
+    case KURZER_DRUCK:
+      Serial.println("Kurzer Druck");
+      ansichtCounter++;
+      ansichtCounter = (ansichtCounter == 2) ? 0 : ansichtCounter;
+      break;
+    case DOPPELKLICK:
+      Serial.println("Doppelklick");
+      break;
+    case LANGER_DRUCK:
+      Serial.println("Langer Druck");
+      ansichtCounter++;
+      ansichtCounter = (ansichtCounter == 2) ? 0 : ansichtCounter;
+      break;
+    case SEHR_LANGER_DRUCK:
+      Serial.println("Sehr langer Druck");
+      break;
+    case EXTRA_LANGER_DRUCK:
+      Serial.println("Extra langer Druck");
+      break;
+    default:
+      break;
+  }
+
+  //Bearbeitung
   waagenDaten[0].gewicht = 5000;
   if (waagenDaten[3].statusFlag > 0) {
     calibrierungsText(waagenDaten[3].statusFlag);
     lcd.clear();
-  } else {
-    for (int i = 0; i < 4; i++) {
-      Serial.print("Waage Possition :");
-      Serial.println(waagenDaten[i].waagenNummer);
-      Serial.print("Gewicht in g: ");
-      Serial.println(waagenDaten[i].gewicht);
-      Serial.print("Zeitstempel: ");
-      Serial.println(waagenDaten[i].timestamp);
-      Serial.println();
-    }
-
+  } else if (ansichtCounter == 0) {
     Standardansicht();
+  } else if (ansichtCounter == 1) {
+    lcd.clear();
+    AutoHintergrund();
   }
-  delay(100);
 }
