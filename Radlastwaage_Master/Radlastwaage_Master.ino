@@ -404,6 +404,7 @@ void setup() {
 
   esp_now_register_recv_cb(messageReceived);
 
+  lcd.init();  // initialize the lcd
   lcd.createChar(0, heart);
   lcd.createChar(1, upper);
   lcd.createChar(2, leftUP);
@@ -412,7 +413,6 @@ void setup() {
   lcd.createChar(5, rightdown);
   lcd.createChar(6, lower);
 
-  lcd.init();  // initialize the lcd
   lcd.backlight();
   lcd.clear();
 }
