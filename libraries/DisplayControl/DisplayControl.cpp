@@ -130,7 +130,7 @@ void DisplayControl::Standardansicht() {
   }
   
   //LINE2
-  int line = 1;
+  line = 1;
   clearLine(line);
   char weightLH[6];
   formatWeight5(_lastWeights[line], weightLH);
