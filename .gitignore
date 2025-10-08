@@ -3,4 +3,5 @@ MAC.txt
 */config.h
 
 #Ordner Libs ausschliessen
-libraries
+libraries/HX711
+libraries/LiquidCrystal_I2C
