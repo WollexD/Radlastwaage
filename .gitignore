@@ -5,3 +5,4 @@ MAC.txt
 #Ordner Libs ausschliessen
 libraries/HX711
 libraries/LiquidCrystal_I2C
+test
