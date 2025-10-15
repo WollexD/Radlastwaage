@@ -5,14 +5,12 @@
 #include <Wire.h>
 #include <TasterControl.h>
 #include <DisplayControl.h>
+
 DisplayControl display;
-//Anzeige eines Confi screens wenn eine Waage noch ein anderes Status/Confi Flag sendet
 TasterControl oneButton;
 
 uint8_t tasterPin = 15;
 int ansichtCounter = 0;
-int backGroundCounterStandard = 60;
-int backGroundCounter = 0;
 
 typedef struct data {
   DeviceIndex waagenNummer;
@@ -22,8 +20,6 @@ typedef struct data {
 } data;
 
 uint8_t myAddress[6];
-
-
 
 data waggenMsg;
 data waagenDaten[4] = { LV, LH, RV, RH };
@@ -75,9 +71,6 @@ void messageReceived(const esp_now_recv_info* info, const uint8_t* incomingData,
   display.updateWeight(waagenDaten[waggenMsg.waagenNummer].gewicht, waagenDaten[waggenMsg.waagenNummer].waagenNummer);
 }
 
-
-
-
 void printMAC(uint8_t* mac) {
   Serial.print("{");
   for (int i = 0; i < 6; i++) {
@@ -110,7 +103,14 @@ void setup() {
   printMAC(actualMAC);
 
   esp_now_register_recv_cb(messageReceived);
+
+  display.Standardansicht();
+  waagenDaten[0].gewicht = 5000;
+  display.updateWeight(waagenDaten[0].gewicht, 0);
 }
+
+long lastChange = 0;
+long gew = 0;
 
 void loop() {
   //-------Auswertung Taster-----------
@@ -120,14 +120,13 @@ void loop() {
       Serial.println("Kurzer Druck");
       ansichtCounter++;
       ansichtCounter = (ansichtCounter == 2) ? 0 : ansichtCounter;
+      display.changeAnsicht(ansichtCounter);
       break;
     case DOPPELKLICK:
       Serial.println("Doppelklick");
       break;
     case LANGER_DRUCK:
       Serial.println("Langer Druck");
-      ansichtCounter++;
-      ansichtCounter = (ansichtCounter == 2) ? 0 : ansichtCounter;
       break;
     case SEHR_LANGER_DRUCK:
       Serial.println("Sehr langer Druck");
@@ -139,22 +138,12 @@ void loop() {
       break;
   }
 
-  //Bearbeitung
-  waagenDaten[0].gewicht = 5000;
-
-  display.updateWeight(waagenDaten[0].gewicht, 0);
-
-  display.Standardansicht();
   display.updateScreen();
 
 
-  // if (waagenDaten[3].statusFlag > 0) {
-  //   calibrierungsText(waagenDaten[3].statusFlag);
-  //   lcd.clear();
-  // } else if (ansichtCounter == 0) {
-  //   Standardansicht();
-  // } else if (ansichtCounter == 1) {
-  //   lcd.clear();
-  //   AutoHintergrund();
-  // }
+  if (millis() - lastChange > 2000) {
+    lastChange = millis();
+    gew = gew + 1000;
+    display.updateWeight(gew, 0);
+  }
 }

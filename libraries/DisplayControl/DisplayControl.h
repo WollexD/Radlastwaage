@@ -21,7 +21,7 @@ public:
   
   void calibrierungsText(int status);
 
-  void Standardansicht();
+  void Standardansicht(int updateLine = 0);
   void AutoHintergrund();
   
   float calcProzent(int version);
@@ -29,9 +29,10 @@ public:
   void clearLine(int line);
   void updateScreen();
   void updateWeight(float weight, int scale);
+  void changeAnsicht(int newAnsicht);
 
 private:
-
+  int Ansicht = 0;
   float _lastWeights[4] = { 0.01, 0.00, 0.00, 0.00};
   bool _weightsChanged[4] = { false, false, false, false};
 
@@ -39,6 +40,12 @@ private:
   const uint8_t ROWS = 20;
   const uint8_t COLL = 4;
   LiquidCrystal_I2C lcd;
+
+
+  void standardLine0();
+  void standardLine1();
+  void standardLine2();
+  void standardLine3();
 
   bool _linechanged[4] = {false, false, false, false};
   bool _needUpdate = true;

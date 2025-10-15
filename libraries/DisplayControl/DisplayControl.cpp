@@ -82,6 +82,12 @@ float DisplayControl::calcProzent(int version) {
   float gewichtVorne = _lastWeights[0] + _lastWeights[2];
   float gewichtHinten = _lastWeights[1] + _lastWeights[3];
   float gewichtGesamt = gewichtVorne + gewichtHinten;
+
+  // Prevent division by zero
+  if (gewichtGesamt == 0.0f) {
+    return 0.0f;
+  }
+
   float VtlVA = (gewichtVorne / gewichtGesamt) * 100;
   float VtlHA = (gewichtHinten / gewichtGesamt) * 100;
   switch (version) {
@@ -115,22 +121,28 @@ float DisplayControl::calcProzent(int version) {
   return 0;
 }
 
-void DisplayControl::Standardansicht() {
-  //LINE1
-  int line = 0;
-  if (_weightsChanged[line])
+void DisplayControl::Standardansicht(int updateLine) {
+  if (_weightsChanged[updateLine])
   {
-    clearLine(line);
-    char weightLV[6];
-    formatWeight5(_lastWeights[line], weightLV);
-
-    replaceAt(lines[line], 0, "LV");
-    replaceAt(lines[line], 2, weightLV);
-    replaceAt(lines[line], 7, "kg|Gesamt:");
+    this->standardLine0();
+    this->standardLine1();
+    this->standardLine2();
+    this->standardLine3();
   }
-  
-  //LINE2
-  line = 1;
+}
+
+void DisplayControl::standardLine0(){
+  int line = 0;
+  clearLine(line);
+  char weightLV[6];
+  formatWeight5(_lastWeights[line], weightLV);
+
+  replaceAt(lines[line], 0, "LV");
+  replaceAt(lines[line], 2, weightLV);
+  replaceAt(lines[line], 7, "kg|Gesamt:");
+}
+void DisplayControl::standardLine1(){
+  int line = 1;
   clearLine(line);
   char weightLH[6];
   formatWeight5(_lastWeights[line], weightLH);
@@ -143,9 +155,9 @@ void DisplayControl::Standardansicht() {
   formatWeight6(_lastWeights[0] + _lastWeights[1] + _lastWeights[2] + _lastWeights[3], weightSumm);
   replaceAt(lines[line], 12, weightSumm);
   replaceAt(lines[line], 18, "kg");
-  
-  //LINE3
-  line = 2;
+}
+void DisplayControl::standardLine2(){
+  int line = 2;
   clearLine(line);
   char weightRV[6];
   formatWeight5(_lastWeights[line], weightRV);
@@ -158,9 +170,9 @@ void DisplayControl::Standardansicht() {
   formatVtl4(calcProzent(1), vertlVA);
   replaceAt(lines[line], 15, vertlVA);
   replaceAt(lines[line], 19, "%");
-  
-  //LINE4
-  line = 3;
+}
+void DisplayControl::standardLine3(){
+  int line = 3;
   clearLine(line);
   char weightRH[6];
   formatWeight5(_lastWeights[line], weightRH);
@@ -179,7 +191,13 @@ void DisplayControl::updateWeight(float weight, int scale){
   if(long(_lastWeights[scale]) != long(weight)){
     _lastWeights[scale] = weight;
     _weightsChanged[scale] = true;
+    _needUpdate = true;
   }
+}
+
+void DisplayControl::changeAnsicht(int newAnsicht){
+  this->Ansicht = newAnsicht;
+  _needUpdate = true;
 }
 
 void DisplayControl::AutoHintergrund() {
@@ -200,10 +218,24 @@ void DisplayControl::clearLine(int line){
   _needUpdate = true;
 }
 
-
 void DisplayControl::updateScreen(){
   if (_needUpdate)
   {
+
+    if (this->Ansicht == 0)
+    {
+      for (int i = 0; i < 4; i++)
+      { 
+        if (_weightsChanged[i])
+        {
+          this->Standardansicht(i);
+        }
+      }
+    }
+    
+
+
+
     _needUpdate = false;
     for (int i = 0; i < 4; i++)
     {
@@ -256,7 +288,7 @@ void DisplayControl::updateScreen(){
 }
 
 int DisplayControl::findNextMarker(const char *text, int startIndex) {
-  for (int i = startIndex + 1; i < 21; i++) {
+  for (int i = startIndex; i < 21; i++) {
     if (text[i] == '\x01') {
       return i;
     }
