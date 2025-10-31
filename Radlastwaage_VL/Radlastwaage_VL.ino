@@ -63,16 +63,7 @@ DeviceIndex getDeviceRole(uint8_t* actualMAC) {
 }
 
 
-//StatusFlag Roadmap
 
-//0 alles OK (kalibriert und tara)
-//100 Kalibrierung nötig
-//110 Remove all weigt from Scale + Press Button to Continue
-//111 Waage wird genullt
-//112 Waage ist genullt + Press Button to Continue
-//113 Kalibrierungsgewicht plazieren + Press Button to Continue
-//114 Waage wird Kalibriert
-//115 Waage ist Kalibriert + Press Button um Vorgang zu beenden!
 
 DeviceIndex myRole;  // LV, LH, RV, RH, MASTER
 data myMessage;
@@ -111,24 +102,23 @@ void printMAC(uint8_t* mac) {
   Serial.println("}");
 }
 
-void messageSent(const uint8_t* macAddr, esp_now_send_status_t status) {
-  // Serial.print("Send status: ");
-  // if (status == ESP_NOW_SEND_SUCCESS) {
-  //   Serial.println("Success");
-  // } else {
-  //   Serial.println("Error");
-  // }
+void messageSent(const wifi_tx_info_t* macAddr, esp_now_send_status_t status) {
+  Serial.print("Send status: ");
+  if (status == ESP_NOW_SEND_SUCCESS) {
+    Serial.println("Success");
+  } else {
+    Serial.println("Error");
+  }
 }
 
 void calibrate() {
   Serial.println("\n\n\n=======CALIBRATION Start ==========\n");
-  currentStatus = 110;
-  myMessage.statusFlag = currentStatus;  //Remove all weigt from Scale + Press Button to Continue
+
+  myMessage.statusFlag = CalibrationWaitRemoveAllWeight;  //Remove all weigt from Scale + Press Button to Continue
   sendeDaten();
   while (!digitalRead(tasterPin)) yield();
 
-  currentStatus = 111;
-  myMessage.statusFlag = currentStatus;  //Waage wird genullt
+  myMessage.statusFlag = CalibrationWorkingZeroing;  //Waage wird genullt
   sendeDaten();
   delay(1000);
   //  average 20 measurements.
@@ -138,19 +128,16 @@ void calibrate() {
   Serial.println(offset);
   delay(1000);
 
-  currentStatus = 112;
-  myMessage.statusFlag = currentStatus;  //Waage ist genullt + Press Button to Continue
+  myMessage.statusFlag = CalibrationWaitAfterZeroing;  //Waage ist genullt + Press Button to Continue
   sendeDaten();
   while (!digitalRead(tasterPin)) yield();
 
-  currentStatus = 113;
-  myMessage.statusFlag = currentStatus;  //Kalibrierungsgewicht plazieren + Press Button to Continue
+  myMessage.statusFlag = CalibrationWaitPlaceWeight;  //Kalibrierungsgewicht plazieren + Press Button to Continue
   sendeDaten();
   delay(2000);
   while (!digitalRead(tasterPin)) yield();
 
-  currentStatus = 114;
-  myMessage.statusFlag = currentStatus;  //Waage wird Kalibriert
+  myMessage.statusFlag = CalibrationWorkingInProgress;  //Waage wird Kalibriert
   sendeDaten();
   delay(1000);
 
@@ -167,8 +154,7 @@ void calibrate() {
   EEPROMDATA.putFloat("offset", offset);  // Wert speichern
   EEPROMDATA.putFloat("scale", scale);    // Wert speichern
 
-  currentStatus = 115;
-  myMessage.statusFlag = currentStatus;  //Waage ist Kalibriert + Press Button um Vorgang zu beenden!
+  myMessage.statusFlag = CalibrationCompleted;  //Waage ist Kalibriert + Press Button um Vorgang zu beenden!
   sendeDaten();
   while (!digitalRead(tasterPin)) yield();
 
@@ -236,7 +222,7 @@ void setup() {
 
   bool sclInit = EEPROMDATA.isKey("scaleInit");  // Test for the existence
                                                  // of the "already initialized" key.
-//------Default Nachricht bauen-------
+                                                 //------Default Nachricht bauen-------
   myMessage.waagenNummer = myRole;
   myMessage.gewicht = 0;
   myMessage.timestamp = millis();
@@ -290,6 +276,7 @@ void loop() {
       EEPROMDATA.remove("scaleInit");
       break;
     default:
+      currentStatus = Default;
       break;
   }
 

@@ -22,7 +22,7 @@ typedef struct data {
 uint8_t myAddress[6];
 
 data waggenMsg;
-data waagenDaten[4] = { LV, LH, RV, RH };
+// data waagenDaten[4] = { LV, LH, RV, RH };
 
 void messageReceived(const esp_now_recv_info* info, const uint8_t* incomingData, int len) {
   // Prüfen, ob die MAC-Adresse in der Liste ist
@@ -63,12 +63,12 @@ void messageReceived(const esp_now_recv_info* info, const uint8_t* incomingData,
 
 
 
-  waagenDaten[waggenMsg.waagenNummer].waagenNummer = waggenMsg.waagenNummer;
-  waagenDaten[waggenMsg.waagenNummer].gewicht = waggenMsg.gewicht;
-  waagenDaten[waggenMsg.waagenNummer].statusFlag = waggenMsg.statusFlag;
-  waagenDaten[waggenMsg.waagenNummer].timestamp = waggenMsg.timestamp;
+  // waagenDaten[waggenMsg.waagenNummer].waagenNummer = waggenMsg.waagenNummer;
+  // waagenDaten[waggenMsg.waagenNummer].gewicht = waggenMsg.gewicht;
+  // waagenDaten[waggenMsg.waagenNummer].statusFlag = waggenMsg.statusFlag;
+  // waagenDaten[waggenMsg.waagenNummer].timestamp = waggenMsg.timestamp;
 
-  display.updateWeight(waagenDaten[waggenMsg.waagenNummer].gewicht, waagenDaten[waggenMsg.waagenNummer].waagenNummer);
+  display.updateWeight(waggenMsg.gewicht, waggenMsg.waagenNummer);
 }
 
 void printMAC(uint8_t* mac) {
@@ -105,12 +105,14 @@ void setup() {
   esp_now_register_recv_cb(messageReceived);
 
   display.Standardansicht();
-  waagenDaten[0].gewicht = 5000;
-  display.updateWeight(waagenDaten[0].gewicht, 0);
+  // waagenDaten[0].gewicht = 5000;
+  display.updateWeight(5000, 0);
 }
 
 long lastChange = 0;
+long lastChange2 = 0;
 long gew = 0;
+long gew2 = 0;
 
 void loop() {
   //-------Auswertung Taster-----------
@@ -144,6 +146,12 @@ void loop() {
   if (millis() - lastChange > 2000) {
     lastChange = millis();
     gew = gew + 1000;
-    display.updateWeight(gew, 0);
+    display.updateWeight(gew, LV);
+  }
+
+  if (millis() - lastChange2 > 1000) {
+    lastChange2 = millis();
+    gew2 = gew2 + 1000;
+    display.updateWeight(gew2, RH);
   }
 }

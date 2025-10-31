@@ -1,3 +1,4 @@
+// #pragma once
 #ifndef DISPLAYCONTROL_H
 #define DISPLAYCONTROL_H
 
