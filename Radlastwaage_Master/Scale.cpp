@@ -1,9 +1,43 @@
-#include <Scale.h>
+#include "Scale.h"
 
-Scale::getChanged(){
-  return self->_changed;
+bool Scale::getChanged() {
+  return this->_changed;
 };
 
-Scale::getNewWeight(){
-  return self->_weight;
+float Scale::getWeight() {
+  return this->_weight;
+}
+
+bool Scale::updateScale(float newWeight, StatusFlags newStatus, unsigned long newTimeStamp) {
+  if (this->_status != newStatus) {
+    this->_status = newStatus;
+    this->_changed = true;
+    this->_changedStatus = true;
+  }
+  if (this->_currentTimestamp != newTimeStamp) {
+    this->_lastTimestamp = this->_currentTimestamp;
+    this->_currentTimestamp = newTimeStamp;
+    this->_changed = true;
+    this->_changedTime = true;
+  }
+
+  if (this->_weight != newWeight) {
+    if (std::fabs(newWeight - _weight) > 10.0f) {
+      _weight = newWeight;
+      this->_changed = true;
+      this->_changedWeigth = true;
+    }
+  }
+
+  if (this->_changed) {
+    notifyListeners();
+    return true;
+  }
+  return false;
+}
+
+void Scale::notifyListeners() {
+  for (int i = 0; i < listenerCount; i++) {
+    listeners[i]->onWeightChanged(this);
+  }
 }

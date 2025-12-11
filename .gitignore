@@ -6,3 +6,4 @@ MAC.txt
 libraries/HX711
 libraries/LiquidCrystal_I2C
 test
+.vscode/*

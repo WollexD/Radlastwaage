@@ -1,6 +1,10 @@
+#include "esp32-hal.h"
 #include "DisplayControl.h"
+#include <vector>
+#include <algorithm>
 
-DisplayControl::DisplayControl() : lcd(ADDR,ROWS,COLL) {}
+DisplayControl::DisplayControl()
+  : lcd(ADDR, ROWS, COLL) {}
 
 void DisplayControl::begin() {
   lcd.init();  // initialize the lcd
@@ -14,6 +18,19 @@ void DisplayControl::begin() {
 
   lcd.backlight();
   lcd.clear();
+}
+
+
+void DisplayControl::clear() {
+  lcd.clear();
+}
+
+
+void DisplayControl::onWeightChanged(Scale* caller) {
+  // Prüfen, ob Waage schon in der Liste ist (keine doppelten Einträge)
+  if (std::find(changedScales.begin(), changedScales.end(), caller) == changedScales.end()) {
+    changedScales.push_back(caller);
+  }
 }
 
 void DisplayControl::calibrierungsText(int status) {
@@ -94,23 +111,23 @@ float DisplayControl::calcProzent(int version) {
     case 1:
       return VtlVA;
       break;
-    
+
     case 2:
       return VtlHA;
       break;
-    
+
     case 10:
       return (_lastWeights[0] / gewichtGesamt) * 100;
       break;
-    
+
     case 11:
       return (_lastWeights[1] / gewichtGesamt) * 100;
       break;
-    
+
     case 12:
       return (_lastWeights[2] / gewichtGesamt) * 100;
       break;
-    
+
     case 13:
       return (_lastWeights[3] / gewichtGesamt) * 100;
       break;
@@ -121,17 +138,8 @@ float DisplayControl::calcProzent(int version) {
   return 0;
 }
 
-void DisplayControl::Standardansicht(int updateLine) {
-  if (_weightsChanged[updateLine])
-  {
-    this->standardLine0();
-    this->standardLine1();
-    this->standardLine2();
-    this->standardLine3();
-  }
-}
-
-void DisplayControl::standardLine0(){
+//----ALT-----
+void DisplayControl::standardLine0() {
   int line = 0;
   clearLine(line);
   char weightLV[6];
@@ -141,7 +149,8 @@ void DisplayControl::standardLine0(){
   replaceAt(lines[line], 2, weightLV);
   replaceAt(lines[line], 7, "kg|Gesamt:");
 }
-void DisplayControl::standardLine1(){
+//----ALT-----
+void DisplayControl::standardLine1() {
   int line = 1;
   clearLine(line);
   char weightLH[6];
@@ -150,13 +159,14 @@ void DisplayControl::standardLine1(){
   replaceAt(lines[line], 0, "LH");
   replaceAt(lines[line], 2, weightLH);
   replaceAt(lines[line], 7, "kg|");
-  
+
   char weightSumm[7];
   formatWeight6(_lastWeights[0] + _lastWeights[1] + _lastWeights[2] + _lastWeights[3], weightSumm);
   replaceAt(lines[line], 12, weightSumm);
   replaceAt(lines[line], 18, "kg");
 }
-void DisplayControl::standardLine2(){
+//----ALT-----
+void DisplayControl::standardLine2() {
   int line = 2;
   clearLine(line);
   char weightRV[6];
@@ -171,7 +181,8 @@ void DisplayControl::standardLine2(){
   replaceAt(lines[line], 15, vertlVA);
   replaceAt(lines[line], 19, "%");
 }
-void DisplayControl::standardLine3(){
+//----ALT-----
+void DisplayControl::standardLine3() {
   int line = 3;
   clearLine(line);
   char weightRH[6];
@@ -186,18 +197,26 @@ void DisplayControl::standardLine3(){
   replaceAt(lines[line], 15, vertlHA);
   replaceAt(lines[line], 19, "%");
 }
-
-void DisplayControl::updateWeight(float weight, int scale){
-  if(long(_lastWeights[scale]) != long(weight)){
+//----ALT-----
+void DisplayControl::updateWeight(float weight, int scale) {
+  if (long(_lastWeights[scale]) != long(weight)) {
     _lastWeights[scale] = weight;
     _weightsChanged[scale] = true;
     _needUpdate = true;
   }
 }
 
-void DisplayControl::changeAnsicht(int newAnsicht){
-  this->Ansicht = newAnsicht;
+void DisplayControl::changeAnsicht(int newAnsicht) {
+  this->_ansicht = newAnsicht;
   _needUpdate = true;
+}
+
+void DisplayControl::setStandardansicht() {
+  changeAnsicht(0);
+}
+
+void DisplayControl::nextAnsicht() {
+  changeAnsicht((this->_ansicht + 1) % _ansichtCount);
 }
 
 void DisplayControl::AutoHintergrund() {
@@ -205,42 +224,70 @@ void DisplayControl::AutoHintergrund() {
   replaceAt(lines[0], 8, "\x01");
 }
 
-void DisplayControl::changeLine(int line, char text[21]){
+//----ALT-----
+void DisplayControl::changeLine(int line, char text[21]) {
   strcpy(lines[line], "                    ");
-  replaceAt(lines[line], 0, text);  
+  replaceAt(lines[line], 0, text);
+  _linechanged[line] = true;
+  _needUpdate = true;
+}
+//----ALT-----
+void DisplayControl::clearLine(int line) {
+  strcpy(lines[line], "                    ");
   _linechanged[line] = true;
   _needUpdate = true;
 }
 
-void DisplayControl::clearLine(int line){
-  strcpy(lines[line], "                    ");
-  _linechanged[line] = true;
-  _needUpdate = true;
+void DisplayControl::DrawBGStandard(){
+  lcd.setCursor(0, 0);
+  lcd.print("LV     kg|Gesamt:   ");
+  lcd.setCursor(0, 1);
+  lcd.print("LH     kg|        kg");
+  lcd.setCursor(0, 2);
+  lcd.print("RV     kg|VtlVA    %");
+  lcd.setCursor(0, 3);
+  lcd.print("RH     kg|VtlHA    %");
 }
 
-void DisplayControl::updateScreen(){
-  if (_needUpdate)
-  {
+void DisplayControl::newUpdateScreen() {
+  switch (this->_ansicht) {
+    case 1:
 
-    if (this->Ansicht == 0)
-    {
-      for (int i = 0; i < 4; i++)
-      { 
-        if (_weightsChanged[i])
-        {
-          this->Standardansicht(i);
-        }
-      }
+      break;
+
+    default:
+      // standardLine0();
+      
+      break;
+  }
+
+  _needUpdate = false;
+  for (int i = 0; i < 4; i++) {
+    if (_linechanged[i]) {
+      _linechanged[i] = false;
+      lcd.setCursor(0, i);
+      lcd.print(lines[i]);
     }
-    
+  }
+}
+
+//----ALT-----
+void DisplayControl::updateScreen() {
+  if (_needUpdate) {
+
+    if (this->_ansicht == 0) {
+      standardLine0();
+      standardLine1();
+      standardLine2();
+      standardLine3();
+    }
+
 
 
 
     _needUpdate = false;
-    for (int i = 0; i < 4; i++)
-    {
-      if (_linechanged[i])
-      {
+    for (int i = 0; i < 4; i++) {
+      if (_linechanged[i]) {
         _linechanged[i] = false;
         lcd.setCursor(0, i);
         lcd.print(lines[i]);
@@ -250,44 +297,36 @@ void DisplayControl::updateScreen(){
     //Start Hinzufügen von AutoBild
     int startIndexLine = 0;
     int startIndexColl = -1;
-    for (int i = 0; i < 4; i++)
-    {
+    for (int i = 0; i < 4; i++) {
       startIndexColl = findNextMarker(lines[i], 0);
-      if (startIndexColl != -1)
-      {
+      if (startIndexColl != -1) {
         startIndexLine = i;
         break;
       }
     }
-    
-    if (startIndexColl != -1)
-    {
-      for (int lin = 0; lin < 4; lin++)
-      {
-        for (int coll = 0; coll < 4; coll++)
-        {
-          
+
+    if (startIndexColl != -1) {
+      for (int lin = 0; lin < 4; lin++) {
+        for (int coll = 0; coll < 4; coll++) {
+
           lcd.setCursor(startIndexColl + coll, startIndexLine + lin);
-          if (car[lin][coll] < 8)
-          {
+          if (car[lin][coll] < 8) {
             lcd.write(byte(car[lin][coll]));
-          } else
-          {
+          } else {
             lcd.write(car[lin][coll]);
-          }        
+          }
         }
       }
     }
     //Ende Hinzufügen von AutoBild
-  
   }
-  
-  
+
+
   // strcpy(line1, "012345678");  schreibt "012345678" in line1.
   // strcat(line1, ausgabe6);     hängt danach ausgabe6 hinten dran.
 }
 
-int DisplayControl::findNextMarker(const char *text, int startIndex) {
+int DisplayControl::findNextMarker(const char* text, int startIndex) {
   for (int i = startIndex; i < 21; i++) {
     if (text[i] == '\x01') {
       return i;
@@ -295,7 +334,9 @@ int DisplayControl::findNextMarker(const char *text, int startIndex) {
   }
   return -1;
 }
-void DisplayControl::replaceAt(char *dest, int pos, const char *insert) {
+
+//----ALT-----
+void DisplayControl::replaceAt(char* dest, int pos, const char* insert) {
   size_t lenDest = strlen(dest);
   size_t lenInsert = strlen(insert);
 
@@ -312,7 +353,7 @@ void DisplayControl::replaceAt(char *dest, int pos, const char *insert) {
   // Hänge den vorher gespeicherten Rest wieder hinten dran
   strcpy(&dest[pos + lenInsert], temp);
 }
-void DisplayControl::formatVtl4(float Vtl, char* buffer) {        // Funktion: Float -> "00,0"-String
+void DisplayControl::formatVtl4(float Vtl, char* buffer) {  // Funktion: Float -> "00,0"-String
   // Überlaufbehandlung
   if (Vtl < 0) {
     strcpy(buffer, "XX,X");
@@ -333,7 +374,7 @@ void DisplayControl::formatVtl4(float Vtl, char* buffer) {        // Funktion: F
   sprintf(buffer, "%2d,%1d", vorn, hinten);  // z. B. " 12,3"
 }
 void DisplayControl::formatWeight5(float weight, char* buffer) {  // Funktion: Float -> "000,0"-String
-  weight = weight / 1000;  //Umrechnung von Gramm in kg
+  weight = weight / 1000;                                         //Umrechnung von Gramm in kg
   // Überlaufbehandlung
   if (weight < -99.9) {
     strcpy(buffer, "-XX,X");
@@ -361,7 +402,7 @@ void DisplayControl::formatWeight5(float weight, char* buffer) {  // Funktion: F
   }
 }
 void DisplayControl::formatWeight6(float weight, char* buffer) {  // Funktion: Float -> "0000,0"-String
-  weight = weight / 1000;  //Umrechnung von Gramm in kg
+  weight = weight / 1000;                                         //Umrechnung von Gramm in kg
   // Überlaufbehandlung
   if (weight < -999.9) {
     strcpy(buffer, "-XXX,X");

@@ -28,8 +28,8 @@ esp_now_peer_info_t peerInfo;
 
 typedef struct data {
   DeviceIndex waagenNummer;
-  long gewicht;
-  int statusFlag;
+  long gewicht;  //in Gramm
+  StatusFlags statusFlag;
   long timestamp;
 } data;
 

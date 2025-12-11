@@ -4,25 +4,25 @@
 #include "config.h"  //MAC Adressen
 #include <Wire.h>
 #include <TasterControl.h>
+#include <Scale.h>
 #include <DisplayControl.h>
-
-DisplayControl display;
-TasterControl oneButton;
-
-uint8_t tasterPin = 15;
-int ansichtCounter = 0;
 
 typedef struct data {
   DeviceIndex waagenNummer;
   long gewicht;
-  int statusFlag;
+  StatusFlags statusFlag;
   long timestamp;
 } data;
+data waagenMsg;
+
+DisplayControl display;
+
+TasterControl oneButton;
+uint8_t tasterPin = 15;
+
+Scale* waagen[4];
 
 uint8_t myAddress[6];
-
-data waggenMsg;
-// data waagenDaten[4] = { LV, LH, RV, RH };
 
 void messageReceived(const esp_now_recv_info* info, const uint8_t* incomingData, int len) {
   // Prüfen, ob die MAC-Adresse in der Liste ist
@@ -43,10 +43,10 @@ void messageReceived(const esp_now_recv_info* info, const uint8_t* incomingData,
     return;
   }
 
-  memcpy(&waggenMsg, incomingData, sizeof(waggenMsg));
+  memcpy(&waagenMsg, incomingData, sizeof(waagenMsg));
 
   // Weiche Sicherung, falls waagenNummer außerhalb des Arrays liegt
-  if (waggenMsg.waagenNummer < 0 || waggenMsg.waagenNummer >= 5) {
+  if (waagenMsg.waagenNummer < 0 || waagenMsg.waagenNummer >= 5) {
     Serial.println("⚠ Ungültige Waagen-Nummer!");
     return;
   }
@@ -61,14 +61,8 @@ void messageReceived(const esp_now_recv_info* info, const uint8_t* incomingData,
   // }
   // Serial.println(")");
 
-
-
-  // waagenDaten[waggenMsg.waagenNummer].waagenNummer = waggenMsg.waagenNummer;
-  // waagenDaten[waggenMsg.waagenNummer].gewicht = waggenMsg.gewicht;
-  // waagenDaten[waggenMsg.waagenNummer].statusFlag = waggenMsg.statusFlag;
-  // waagenDaten[waggenMsg.waagenNummer].timestamp = waggenMsg.timestamp;
-
-  display.updateWeight(waggenMsg.gewicht, waggenMsg.waagenNummer);
+  display.updateWeight(waagenMsg.gewicht, waagenMsg.waagenNummer); //fällt dann raus!
+  waagen[waagenMsg.waagenNummer]->updateScale(waagenMsg.gewicht, waagenMsg.statusFlag, waagenMsg.timestamp);
 }
 
 void printMAC(uint8_t* mac) {
@@ -89,6 +83,12 @@ void setup() {
   memcpy(myAddress, MasterAddress, sizeof(myAddress));
   Serial.begin(115200);
   delay(1000);
+
+  for (DeviceIndex i = DeviceIndex::LV; i < DeviceIndex::MASTER; ++i) {
+    waagen[static_cast<int>(i)] = new Scale(i);
+    waagen[static_cast<int>(i)]->addListener(&display);
+  }
+
   WiFi.mode(WIFI_STA);
 
   if (esp_now_init() == ESP_OK) {
@@ -104,9 +104,12 @@ void setup() {
 
   esp_now_register_recv_cb(messageReceived);
 
-  display.Standardansicht();
+
+  display.clear();
+  display.setStandardansicht();
   // waagenDaten[0].gewicht = 5000;
-  display.updateWeight(5000, 0);
+
+  waagen[LV]->updateScale(5000.0, Default, 0);
 }
 
 long lastChange = 0;
@@ -120,9 +123,7 @@ void loop() {
   switch (event) {
     case KURZER_DRUCK:
       Serial.println("Kurzer Druck");
-      ansichtCounter++;
-      ansichtCounter = (ansichtCounter == 2) ? 0 : ansichtCounter;
-      display.changeAnsicht(ansichtCounter);
+      display.nextAnsicht();
       break;
     case DOPPELKLICK:
       Serial.println("Doppelklick");
@@ -140,18 +141,18 @@ void loop() {
       break;
   }
 
-  display.updateScreen();
+  display.newUpdateScreen();
 
-
+  delay(500);
   if (millis() - lastChange > 2000) {
     lastChange = millis();
     gew = gew + 1000;
-    display.updateWeight(gew, LV);
+    waagen[LV]->updateScale(gew, Default, 0);
   }
 
   if (millis() - lastChange2 > 1000) {
     lastChange2 = millis();
     gew2 = gew2 + 1000;
-    display.updateWeight(gew2, RH);
+    waagen[RH]->updateScale(gew2, Default, 0);
   }
 }
