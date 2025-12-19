@@ -1,6 +1,6 @@
 #include "Scale.h"
 
-bool Scale::getChanged() const{
+bool Scale::getChanged() const {
   return this->_changed;
 };
 
@@ -8,8 +8,20 @@ float Scale::getWeight() const {
   return this->_weight;
 }
 
-DeviceIndex Scale::getIndex() const{
+DeviceIndex Scale::getIndex() const {
   return this->_scaleNumber;
+}
+
+bool Scale::scaleAlive() {
+  if (millis() - this->_lastTimestampOnMaster >= 1000) {
+    this->_status = ErrorConnection;
+    this->_changed = true;
+    this->_changedStatus = true;
+    this->_weight = 0.0f;
+    deaktivatOnListeners();
+    return false;
+  }
+  return true;
 }
 
 bool Scale::updateScale(float newWeight, StatusFlags newStatus, unsigned long newTimeStamp) {
@@ -20,14 +32,15 @@ bool Scale::updateScale(float newWeight, StatusFlags newStatus, unsigned long ne
   }
   if (this->_currentTimestamp != newTimeStamp) {
     this->_lastTimestamp = this->_currentTimestamp;
+    this->_lastTimestampOnMaster = millis();
     this->_currentTimestamp = newTimeStamp;
     this->_changed = true;
     this->_changedTime = true;
   }
 
   if (this->_weight != newWeight) {
-    if (std::fabs(newWeight - _weight) > 10.0f) {
-      _weight = newWeight;
+    if (std::fabs(newWeight - this->_weight) > 10.0f) {
+      this->_weight = newWeight;
       this->_changed = true;
       this->_changedWeigth = true;
     }
@@ -38,6 +51,11 @@ bool Scale::updateScale(float newWeight, StatusFlags newStatus, unsigned long ne
     return true;
   }
   return false;
+}
+void Scale::deaktivatOnListeners() {
+  for (int i = 0; i < listenerCount; i++) {
+    listeners[i]->deactivateScale(this);
+  }
 }
 
 void Scale::notifyListeners() {

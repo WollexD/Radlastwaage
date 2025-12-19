@@ -35,14 +35,14 @@ public:
   float calcProzent(Scale* (&waagen)[4], DeviceIndex index);
   float calcGesamtMasse(Scale* (&waagen)[4]);
 
-  void newUpdateScreen(Scale* (&waagen)[4]);
-  void updateScreen();
+  void updateScreen(Scale* (&waagen)[4]);
 
 
-  void DrawBGStandard(); 
+  void DrawBGStandard();
   void DrawBGAuto();
 
-  void onWeightChanged(Scale* caller) override;
+  void onWeightChanged(Scale* caller) override;  //+activateScale
+  void deactivateScale(Scale* caller) override;
 
 
 
@@ -52,15 +52,16 @@ private:
   int _ansichtCount = 2;  //Anzahl Ansichten
   bool _needUpdate = true;
   std::vector<const Scale*> changedScales;
-  
+  std::vector<const Scale*> activeScales;
+
   const uint8_t ADDR = 0x27;
   const uint8_t ROWS = 20;
   const uint8_t COLL = 4;
   LiquidCrystal_I2C lcd;
-  unsigned long _bgRefreshTime     = 10000;
+  unsigned long _bgRefreshTime = 10000;
   unsigned long _bgLastRefreshTime = 0;
 
-  int carPos[4][2] {{0,0}, {0,2},{12,0},{12,2}};
+  int carPos[4][2]{ { 0, 0 }, { 0, 2 }, { 12, 0 }, { 12, 2 } };
 
   byte heart[8] = {
     B00000,

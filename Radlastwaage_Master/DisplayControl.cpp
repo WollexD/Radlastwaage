@@ -31,6 +31,15 @@ void DisplayControl::onWeightChanged(Scale* caller) {
   if (std::find(changedScales.begin(), changedScales.end(), caller) == changedScales.end()) {
     changedScales.push_back(caller);
   }
+  if (std::find(activeScales.begin(), activeScales.end(), caller) == activeScales.end()) {
+    activeScales.push_back(caller);
+  }
+}
+
+void DisplayControl::deactivateScale(Scale* caller) {
+  activeScales.erase(
+    std::remove(activeScales.begin(), activeScales.end(), caller),
+    activeScales.end());
 }
 
 void DisplayControl::calibrierungsText(int status) {
@@ -217,7 +226,7 @@ bool DisplayControl::bgNeedRefresh() {
 
 
 
-void DisplayControl::newUpdateScreen(Scale* (&waagen)[4]) {
+void DisplayControl::updateScreen(Scale* (&waagen)[4]) {
   if (!(!_needUpdate || bgNeedRefresh() || !changedScales.empty())) {
     return;
   }
@@ -236,8 +245,13 @@ void DisplayControl::newUpdateScreen(Scale* (&waagen)[4]) {
       }
       // Nach dem Durchlauf Liste leeren
       changedScales.clear();
-      for (DeviceIndex i = DeviceIndex::LV; i < DeviceIndex::MASTER; ++i) {
-        replaceAtCoordinate(carPos[static_cast<int>(i)][0] + 1, carPos[static_cast<int>(i)][1] + 1, 2, 2, calcProzent(waagen, i), FORMAT_PERCENT);
+      // for (DeviceIndex i = DeviceIndex::LV; i < DeviceIndex::MASTER; ++i) {
+
+      //   replaceAtCoordinate(carPos[static_cast<int>(i)][0] + 1, carPos[static_cast<int>(i)][1] + 1, 2, 2, calcProzent(waagen, i), FORMAT_PERCENT);
+      // }
+
+      for (const Scale* w : activeScales) {
+        replaceAtCoordinate(carPos[w->getIndex()][0] + 1, carPos[w->getIndex()][1] + 1, 2, 2, calcProzent(waagen, w->getIndex()), FORMAT_PERCENT);
       }
       // replaceAtCoordinate(0, 0, 4, 2, waagen[LV]->getWeight());
       // replaceAtCoordinate(0, 3, 4, 2, waagen[LH]->getWeight());
@@ -252,14 +266,18 @@ void DisplayControl::newUpdateScreen(Scale* (&waagen)[4]) {
       if (bgNeedRefresh()) {
         DrawBGStandard();
         _bgLastRefreshTime = millis();
-      }
+        for (const Scale* w : activeScales) {
+          replaceAtCoordinate(2, w->_scaleNumber, 3, 1, w->getWeight());
+        }
+      } else {
 
-      // Nur Waagen updaten, die sich geändert haben
-      for (const Scale* w : changedScales) {
-        replaceAtCoordinate(2, w->_scaleNumber, 3, 1, w->getWeight());
+        // Nur Waagen updaten, die sich geändert haben
+        for (const Scale* w : changedScales) {
+          replaceAtCoordinate(2, w->_scaleNumber, 3, 1, w->getWeight());
+        }
+        // Nach dem Durchlauf Liste leeren
+        changedScales.clear();
       }
-      // Nach dem Durchlauf Liste leeren
-      changedScales.clear();
 
       replaceAtCoordinate(10, 1, 5, 2, calcGesamtMasse(waagen));
       replaceAtCoordinate(15, 2, 2, 1, calcProzent(waagen, Vorne), FORMAT_PERCENT);
@@ -269,63 +287,6 @@ void DisplayControl::newUpdateScreen(Scale* (&waagen)[4]) {
 
   _needUpdate = false;
 }
-
-//----ALT-----
-// void DisplayControl::updateScreen() {
-//   if (_needUpdate) {
-
-//     if (this->_ansicht == 0) {
-//       standardLine0();
-//       standardLine1();
-//       standardLine2();
-//       standardLine3();
-//     }
-
-
-
-
-//     _needUpdate = false;
-//     for (int i = 0; i < 4; i++) {
-//       if (_linechanged[i]) {
-//         _linechanged[i] = false;
-//         lcd.setCursor(0, i);
-//         lcd.print(lines[i]);
-//       }
-//     }
-
-//     //Start Hinzufügen von AutoBild
-//     int startIndexLine = 0;
-//     int startIndexColl = -1;
-//     for (int i = 0; i < 4; i++) {
-//       startIndexColl = findNextMarker(lines[i], 0);
-//       if (startIndexColl != -1) {
-//         startIndexLine = i;
-//         break;
-//       }
-//     }
-
-//     if (startIndexColl != -1) {
-//       for (int lin = 0; lin < 4; lin++) {
-//         for (int coll = 0; coll < 4; coll++) {
-
-//           lcd.setCursor(startIndexColl + coll, startIndexLine + lin);
-//           if (car[lin][coll] < 8) {
-//             lcd.write(byte(car[lin][coll]));
-//           } else {
-//             lcd.write(car[lin][coll]);
-//           }
-//         }
-//       }
-//     }
-//     //Ende Hinzufügen von AutoBild
-//   }
-
-
-//   // strcpy(line1, "012345678");  schreibt "012345678" in line1.
-//   // strcat(line1, ausgabe6);     hängt danach ausgabe6 hinten dran.
-// }
-
-
 
 void DisplayControl::formatFloatToChar(float floatValue, char* buffer, uint8_t intDigits, uint8_t fracDigits, FormatMode mode) {
 

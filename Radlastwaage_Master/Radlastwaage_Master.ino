@@ -139,7 +139,7 @@ void loop() {
       break;
   }
 
-  display.newUpdateScreen(waagen);
+  display.updateScreen(waagen);
 
   // delay(500);
   if (millis() - lastChange > 2000) {
