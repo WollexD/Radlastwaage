@@ -1,6 +1,7 @@
 #Mac Info ausschliessen
 MAC.txt
-*/config.h
+Radlastwaage_Master/config.cpp
+Radlastwaage_VL/config.h
 
 #Ordner Libs ausschliessen
 libraries/HX711
