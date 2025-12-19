@@ -122,7 +122,6 @@ void loop() {
     case KURZER_DRUCK:
       display.nextAnsicht();
       Serial.println("Kurzer Druck");
-      display.nextAnsicht();
       break;
     case DOPPELKLICK:
       Serial.println("Doppelklick");

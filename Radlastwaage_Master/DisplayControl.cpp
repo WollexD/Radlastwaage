@@ -93,8 +93,8 @@ void DisplayControl::calibrierungsText(int status) {
 }
 
 //noch fixen
-float DisplayControl::calcProzent(Scale* (&waagen)[4], int version) {
-  //1 = Vorne 2 = hinten, 10 = LV, 11 = LH, 12 = RV, 13 = RH
+float DisplayControl::calcProzent(Scale* (&waagen)[4], DeviceIndex index) {
+  //10 = Vorne 20 = hinten, 0 = LV, 1 = LH, 2 = RV, 3 = RH
 
   float gewichtVorne = waagen[LV]->getWeight() + waagen[RV]->getWeight();
   float gewichtHinten = waagen[LH]->getWeight() + waagen[RH]->getWeight();
@@ -107,28 +107,28 @@ float DisplayControl::calcProzent(Scale* (&waagen)[4], int version) {
 
   float VtlVA = (gewichtVorne / gewichtGesamt) * 100;
   float VtlHA = (gewichtHinten / gewichtGesamt) * 100;
-  switch (version) {
-    case 1:
+  switch (index) {
+    case Vorne:
       return VtlVA;
       break;
 
-    case 2:
+    case Hinten:
       return VtlHA;
       break;
 
-    case 10:
+    case LV:
       return (waagen[LV]->getWeight() / gewichtGesamt) * 100;
       break;
 
-    case 11:
+    case LH:
       return (waagen[LH]->getWeight() / gewichtGesamt) * 100;
       break;
 
-    case 12:
+    case RV:
       return (waagen[RV]->getWeight() / gewichtGesamt) * 100;
       break;
 
-    case 13:
+    case RH:
       return (waagen[RH]->getWeight() / gewichtGesamt) * 100;
       break;
 
@@ -173,42 +173,42 @@ void DisplayControl::setStandardansicht() {
 //----Hintergründe+Steuerung----Start----
 void DisplayControl::DrawBGStandard() {
   lcd.setCursor(0, 0);
-  lcd.print("LV     kg|Gesamt:   ");
+  lcd.print("LV N.C.kg|Gesamt:   ");
   lcd.setCursor(0, 1);
-  lcd.print("LH     kg|        kg");
+  lcd.print("LH N.C.kg|        kg");
   lcd.setCursor(0, 2);
-  lcd.print("RV     kg|VtlVA    %");
+  lcd.print("RV N.C.kg|VtlVA    %");
   lcd.setCursor(0, 3);
-  lcd.print("RH     kg|VtlHA    %");
+  lcd.print("RH N.C.kg|VtlHA    %");
 }
 
 void DisplayControl::DrawBGAuto() {
   lcd.setCursor(0, 0);
-  lcd.print("        ");
+  lcd.print("  N.C.kg");
   lcd.write(byte(2));
   lcd.write(byte(1));
   lcd.write(byte(1));
   lcd.write(byte(4));
-  lcd.print("        ");
+  lcd.print("  N.C.kg");
 
   lcd.setCursor(0, 1);
-  lcd.print("        |  |        ");
+  lcd.print("  N.C.% |  |  N.C.% ");
 
   lcd.setCursor(0, 2);
-  lcd.print("        |  |        ");
+  lcd.print("  N.C.kg|  |  N.C.kg");
 
   lcd.setCursor(0, 3);
-  lcd.print("        ");
+  lcd.print("  N.C.% ");
   lcd.write(byte(3));
   lcd.write(byte(6));
   lcd.write(byte(6));
   lcd.write(byte(5));
-  lcd.print("        ");
+  lcd.print("  N.C.% ");
 }
 
 bool DisplayControl::bgNeedRefresh() {
-  if (millis() - _bgLastRefreshTime >= _bgRefreshTime) {
-    _bgLastRefreshTime = millis();
+  if (millis() - this->_bgLastRefreshTime >= this->_bgRefreshTime) {
+    // _bgLastRefreshTime = millis(); Zurücksetzten darf erst nach aktuallisierung erfolgen
     return true;
   }
   return false;
@@ -218,20 +218,40 @@ bool DisplayControl::bgNeedRefresh() {
 
 
 void DisplayControl::newUpdateScreen(Scale* (&waagen)[4]) {
-  if (!_needUpdate && !bgNeedRefresh() && !changedScales.empty()) {
+  if (!(!_needUpdate || bgNeedRefresh() || !changedScales.empty())) {
     return;
   }
 
+
   switch (this->_ansicht) {
-    case 1:
+    case 1:  //Ansicht 1 (Auto mit Radgewichten)
       if (bgNeedRefresh()) {
         DrawBGAuto();
+        _bgLastRefreshTime = millis();
       }
+
+      // Nur Waagen updaten, die sich geändert haben
+      for (const Scale* w : changedScales) {
+        replaceAtCoordinate(carPos[w->_scaleNumber][0], carPos[w->_scaleNumber][1], 3, 2, w->getWeight());
+      }
+      // Nach dem Durchlauf Liste leeren
+      changedScales.clear();
+      for (DeviceIndex i = DeviceIndex::LV; i < DeviceIndex::MASTER; ++i) {
+        replaceAtCoordinate(carPos[static_cast<int>(i)][0] + 1, carPos[static_cast<int>(i)][1] + 1, 2, 2, calcProzent(waagen, i), FORMAT_PERCENT);
+      }
+      // replaceAtCoordinate(0, 0, 4, 2, waagen[LV]->getWeight());
+      // replaceAtCoordinate(0, 3, 4, 2, waagen[LH]->getWeight());
+      // replaceAtCoordinate(13, 0, 4, 2, waagen[RV]->getWeight());
+      // replaceAtCoordinate(13, 3, 4, 2, waagen[RH]->getWeight());
+
+
+
       break;
 
-    default:  //Anischt 0 bzw. Standardansicht
+    default:  //Ansicht 0 bzw. Standardansicht
       if (bgNeedRefresh()) {
         DrawBGStandard();
+        _bgLastRefreshTime = millis();
       }
 
       // Nur Waagen updaten, die sich geändert haben
@@ -242,8 +262,8 @@ void DisplayControl::newUpdateScreen(Scale* (&waagen)[4]) {
       changedScales.clear();
 
       replaceAtCoordinate(10, 1, 5, 2, calcGesamtMasse(waagen));
-      replaceAtCoordinate(15, 2, 2, 1, calcProzent(waagen, 1), FORMAT_PERCENT);
-      replaceAtCoordinate(15, 3, 2, 1, calcProzent(waagen, 2), FORMAT_PERCENT);
+      replaceAtCoordinate(15, 2, 2, 1, calcProzent(waagen, Vorne), FORMAT_PERCENT);
+      replaceAtCoordinate(15, 3, 2, 1, calcProzent(waagen, Hinten), FORMAT_PERCENT);
       break;
   }
 

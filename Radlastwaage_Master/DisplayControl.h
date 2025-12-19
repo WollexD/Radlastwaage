@@ -32,7 +32,7 @@ public:
   void setStandardansicht();
   void nextAnsicht();
 
-  float calcProzent(Scale* (&waagen)[4], int version);
+  float calcProzent(Scale* (&waagen)[4], DeviceIndex index);
   float calcGesamtMasse(Scale* (&waagen)[4]);
 
   void newUpdateScreen(Scale* (&waagen)[4]);
@@ -49,7 +49,7 @@ public:
 
 private:
   int _ansicht = 0;
-  int _ansichtCount = 3;  //Anzahl Ansichten
+  int _ansichtCount = 2;  //Anzahl Ansichten
   bool _needUpdate = true;
   std::vector<const Scale*> changedScales;
   
@@ -57,8 +57,10 @@ private:
   const uint8_t ROWS = 20;
   const uint8_t COLL = 4;
   LiquidCrystal_I2C lcd;
-  unsigned long _bgRefreshTime     = 1000;
+  unsigned long _bgRefreshTime     = 10000;
   unsigned long _bgLastRefreshTime = 0;
+
+  int carPos[4][2] {{0,0}, {0,2},{12,0},{12,2}};
 
   byte heart[8] = {
     B00000,

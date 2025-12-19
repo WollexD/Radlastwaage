@@ -15,6 +15,7 @@ public:
   Scale(DeviceIndex n) : _scaleNumber(n) {};  // Konstruktor muss noch überarbeitet werden!
   bool getChanged() const;
   float getWeight() const;
+  DeviceIndex getIndex() const;
   bool updateScale(float newWeight, StatusFlags newStatus, unsigned long newTimeStamp);
 
   // bool isTimetoLong...

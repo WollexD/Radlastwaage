@@ -8,6 +8,10 @@ float Scale::getWeight() const {
   return this->_weight;
 }
 
+DeviceIndex Scale::getIndex() const{
+  return this->_scaleNumber;
+}
+
 bool Scale::updateScale(float newWeight, StatusFlags newStatus, unsigned long newTimeStamp) {
   if (this->_status != newStatus) {
     this->_status = newStatus;
