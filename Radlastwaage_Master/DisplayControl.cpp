@@ -92,12 +92,12 @@ void DisplayControl::calibrierungsText(int status) {
   }
 }
 
-
-float DisplayControl::calcProzent(int version) {
+//noch fixen
+float DisplayControl::calcProzent(Scale* (&waagen)[4], int version) {
   //1 = Vorne 2 = hinten, 10 = LV, 11 = LH, 12 = RV, 13 = RH
 
-  float gewichtVorne = _lastWeights[0] + _lastWeights[2];
-  float gewichtHinten = _lastWeights[1] + _lastWeights[3];
+  float gewichtVorne = waagen[LV]->getWeight() + waagen[RV]->getWeight();
+  float gewichtHinten = waagen[LH]->getWeight() + waagen[RH]->getWeight();
   float gewichtGesamt = gewichtVorne + gewichtHinten;
 
   // Prevent division by zero
@@ -117,19 +117,19 @@ float DisplayControl::calcProzent(int version) {
       break;
 
     case 10:
-      return (_lastWeights[0] / gewichtGesamt) * 100;
+      return (waagen[LV]->getWeight() / gewichtGesamt) * 100;
       break;
 
     case 11:
-      return (_lastWeights[1] / gewichtGesamt) * 100;
+      return (waagen[LH]->getWeight() / gewichtGesamt) * 100;
       break;
 
     case 12:
-      return (_lastWeights[2] / gewichtGesamt) * 100;
+      return (waagen[RV]->getWeight() / gewichtGesamt) * 100;
       break;
 
     case 13:
-      return (_lastWeights[3] / gewichtGesamt) * 100;
+      return (waagen[RH]->getWeight() / gewichtGesamt) * 100;
       break;
 
     default:
@@ -138,107 +138,40 @@ float DisplayControl::calcProzent(int version) {
   return 0;
 }
 
-//----ALT-----
-void DisplayControl::standardLine0() {
-  int line = 0;
-  clearLine(line);
-  char weightLV[6];
-  formatWeight5(_lastWeights[line], weightLV);
-
-  replaceAt(lines[line], 0, "LV");
-  replaceAt(lines[line], 2, weightLV);
-  replaceAt(lines[line], 7, "kg|Gesamt:");
-}
-//----ALT-----
-void DisplayControl::standardLine1() {
-  int line = 1;
-  clearLine(line);
-  char weightLH[6];
-  formatWeight5(_lastWeights[line], weightLH);
-
-  replaceAt(lines[line], 0, "LH");
-  replaceAt(lines[line], 2, weightLH);
-  replaceAt(lines[line], 7, "kg|");
-
-  char weightSumm[7];
-  formatWeight6(_lastWeights[0] + _lastWeights[1] + _lastWeights[2] + _lastWeights[3], weightSumm);
-  replaceAt(lines[line], 12, weightSumm);
-  replaceAt(lines[line], 18, "kg");
-}
-//----ALT-----
-void DisplayControl::standardLine2() {
-  int line = 2;
-  clearLine(line);
-  char weightRV[6];
-  formatWeight5(_lastWeights[line], weightRV);
-
-  replaceAt(lines[line], 0, "RV");
-  replaceAt(lines[line], 2, weightRV);
-  replaceAt(lines[line], 7, "kg|VtlVA");
-
-  char vertlVA[5];
-  formatVtl4(calcProzent(1), vertlVA);
-  replaceAt(lines[line], 15, vertlVA);
-  replaceAt(lines[line], 19, "%");
-}
-//----ALT-----
-void DisplayControl::standardLine3() {
-  int line = 3;
-  clearLine(line);
-  char weightRH[6];
-  formatWeight5(_lastWeights[line], weightRH);
-
-  replaceAt(lines[line], 0, "RH");
-  replaceAt(lines[line], 2, weightRH);
-  replaceAt(lines[line], 7, "kg|VtlHA");
-
-  char vertlHA[5];
-  formatVtl4(calcProzent(2), vertlHA);
-  replaceAt(lines[line], 15, vertlHA);
-  replaceAt(lines[line], 19, "%");
-}
-//----ALT-----
-void DisplayControl::updateWeight(float weight, int scale) {
-  if (long(_lastWeights[scale]) != long(weight)) {
-    _lastWeights[scale] = weight;
-    _weightsChanged[scale] = true;
-    _needUpdate = true;
-  }
+float DisplayControl::calcGesamtMasse(Scale* (&waagen)[4]) {
+  return waagen[0]->getWeight() + waagen[1]->getWeight() + waagen[2]->getWeight() + waagen[3]->getWeight();
 }
 
+
+
+//----NEU-----
+void DisplayControl::replaceAtCoordinate(int coll, int row, int digit, int nachkommastellen, float wert, FormatMode mode = FORMAT_WEIGHT) {
+  char formattedString[digit + nachkommastellen + 1];
+  formatFloatToChar(wert, formattedString, digit, nachkommastellen, mode);
+  lcd.setCursor(coll, row);
+  lcd.print(formattedString);
+}
+
+
+//----Ansichtensteuerung----Start----
 void DisplayControl::changeAnsicht(int newAnsicht) {
   this->_ansicht = newAnsicht;
+  this->_bgLastRefreshTime = 0;
   _needUpdate = true;
-}
-
-void DisplayControl::setStandardansicht() {
-  changeAnsicht(0);
 }
 
 void DisplayControl::nextAnsicht() {
   changeAnsicht((this->_ansicht + 1) % _ansichtCount);
 }
 
-void DisplayControl::AutoHintergrund() {
-  _needUpdate = true;
-  replaceAt(lines[0], 8, "\x01");
+void DisplayControl::setStandardansicht() {
+  changeAnsicht(0);
 }
+//----Ansichtensteuerung----Ende----
 
-//----ALT-----
-void DisplayControl::changeLine(int line, char text[21]) {
-  strcpy(lines[line], "                    ");
-  replaceAt(lines[line], 0, text);
-  _linechanged[line] = true;
-  _needUpdate = true;
-}
-//----ALT-----
-void DisplayControl::clearLine(int line) {
-  strcpy(lines[line], "                    ");
-  _linechanged[line] = true;
-  _needUpdate = true;
-}
 
-void DisplayControl::DrawBGStandard(){
+//----Hintergründe+Steuerung----Start----
+void DisplayControl::DrawBGStandard() {
   lcd.setCursor(0, 0);
   lcd.print("LV     kg|Gesamt:   ");
   lcd.setCursor(0, 1);
@@ -249,183 +182,202 @@ void DisplayControl::DrawBGStandard(){
   lcd.print("RH     kg|VtlHA    %");
 }
 
-void DisplayControl::newUpdateScreen() {
+void DisplayControl::DrawBGAuto() {
+  lcd.setCursor(0, 0);
+  lcd.print("        ");
+  lcd.write(byte(2));
+  lcd.write(byte(1));
+  lcd.write(byte(1));
+  lcd.write(byte(4));
+  lcd.print("        ");
+
+  lcd.setCursor(0, 1);
+  lcd.print("        |  |        ");
+
+  lcd.setCursor(0, 2);
+  lcd.print("        |  |        ");
+
+  lcd.setCursor(0, 3);
+  lcd.print("        ");
+  lcd.write(byte(3));
+  lcd.write(byte(6));
+  lcd.write(byte(6));
+  lcd.write(byte(5));
+  lcd.print("        ");
+}
+
+bool DisplayControl::bgNeedRefresh() {
+  if (millis() - _bgLastRefreshTime >= _bgRefreshTime) {
+    _bgLastRefreshTime = millis();
+    return true;
+  }
+  return false;
+}
+//----Hintergründe+Steuerung----Ende----
+
+
+
+void DisplayControl::newUpdateScreen(Scale* (&waagen)[4]) {
+  if (!_needUpdate && !bgNeedRefresh() && !changedScales.empty()) {
+    return;
+  }
+
   switch (this->_ansicht) {
     case 1:
-
+      if (bgNeedRefresh()) {
+        DrawBGAuto();
+      }
       break;
 
-    default:
-      // standardLine0();
-      
+    default:  //Anischt 0 bzw. Standardansicht
+      if (bgNeedRefresh()) {
+        DrawBGStandard();
+      }
+
+      // Nur Waagen updaten, die sich geändert haben
+      for (const Scale* w : changedScales) {
+        replaceAtCoordinate(2, w->_scaleNumber, 3, 1, w->getWeight());
+      }
+      // Nach dem Durchlauf Liste leeren
+      changedScales.clear();
+
+      replaceAtCoordinate(10, 1, 5, 2, calcGesamtMasse(waagen));
+      replaceAtCoordinate(15, 2, 2, 1, calcProzent(waagen, 1), FORMAT_PERCENT);
+      replaceAtCoordinate(15, 3, 2, 1, calcProzent(waagen, 2), FORMAT_PERCENT);
       break;
   }
 
   _needUpdate = false;
-  for (int i = 0; i < 4; i++) {
-    if (_linechanged[i]) {
-      _linechanged[i] = false;
-      lcd.setCursor(0, i);
-      lcd.print(lines[i]);
-    }
-  }
 }
 
 //----ALT-----
-void DisplayControl::updateScreen() {
-  if (_needUpdate) {
+// void DisplayControl::updateScreen() {
+//   if (_needUpdate) {
 
-    if (this->_ansicht == 0) {
-      standardLine0();
-      standardLine1();
-      standardLine2();
-      standardLine3();
+//     if (this->_ansicht == 0) {
+//       standardLine0();
+//       standardLine1();
+//       standardLine2();
+//       standardLine3();
+//     }
+
+
+
+
+//     _needUpdate = false;
+//     for (int i = 0; i < 4; i++) {
+//       if (_linechanged[i]) {
+//         _linechanged[i] = false;
+//         lcd.setCursor(0, i);
+//         lcd.print(lines[i]);
+//       }
+//     }
+
+//     //Start Hinzufügen von AutoBild
+//     int startIndexLine = 0;
+//     int startIndexColl = -1;
+//     for (int i = 0; i < 4; i++) {
+//       startIndexColl = findNextMarker(lines[i], 0);
+//       if (startIndexColl != -1) {
+//         startIndexLine = i;
+//         break;
+//       }
+//     }
+
+//     if (startIndexColl != -1) {
+//       for (int lin = 0; lin < 4; lin++) {
+//         for (int coll = 0; coll < 4; coll++) {
+
+//           lcd.setCursor(startIndexColl + coll, startIndexLine + lin);
+//           if (car[lin][coll] < 8) {
+//             lcd.write(byte(car[lin][coll]));
+//           } else {
+//             lcd.write(car[lin][coll]);
+//           }
+//         }
+//       }
+//     }
+//     //Ende Hinzufügen von AutoBild
+//   }
+
+
+//   // strcpy(line1, "012345678");  schreibt "012345678" in line1.
+//   // strcat(line1, ausgabe6);     hängt danach ausgabe6 hinten dran.
+// }
+
+
+
+void DisplayControl::formatFloatToChar(float floatValue, char* buffer, uint8_t intDigits, uint8_t fracDigits, FormatMode mode) {
+
+  const uint8_t width = intDigits + fracDigits + 1;
+
+  for (uint8_t i = 0; i < width; i++) buffer[i] = ' ';
+  buffer[width] = '\0';
+
+  // Modusabhängige Grenzen
+  if (mode == FORMAT_PERCENT) {
+    if (floatValue < 0.0f || floatValue > 99.99f) {
+      for (uint8_t i = 0; i < width; i++) buffer[i] = 'X';
+      return;
     }
-
-
-
-
-    _needUpdate = false;
-    for (int i = 0; i < 4; i++) {
-      if (_linechanged[i]) {
-        _linechanged[i] = false;
-        lcd.setCursor(0, i);
-        lcd.print(lines[i]);
-      }
-    }
-
-    //Start Hinzufügen von AutoBild
-    int startIndexLine = 0;
-    int startIndexColl = -1;
-    for (int i = 0; i < 4; i++) {
-      startIndexColl = findNextMarker(lines[i], 0);
-      if (startIndexColl != -1) {
-        startIndexLine = i;
-        break;
-      }
-    }
-
-    if (startIndexColl != -1) {
-      for (int lin = 0; lin < 4; lin++) {
-        for (int coll = 0; coll < 4; coll++) {
-
-          lcd.setCursor(startIndexColl + coll, startIndexLine + lin);
-          if (car[lin][coll] < 8) {
-            lcd.write(byte(car[lin][coll]));
-          } else {
-            lcd.write(car[lin][coll]);
-          }
-        }
-      }
-    }
-    //Ende Hinzufügen von AutoBild
   }
 
-
-  // strcpy(line1, "012345678");  schreibt "012345678" in line1.
-  // strcat(line1, ausgabe6);     hängt danach ausgabe6 hinten dran.
-}
-
-int DisplayControl::findNextMarker(const char* text, int startIndex) {
-  for (int i = startIndex; i < 21; i++) {
-    if (text[i] == '\x01') {
-      return i;
-    }
+  if (mode == FORMAT_WEIGHT) {
+    floatValue /= 1000.0f;
   }
-  return -1;
-}
+  // Skalierungsfaktor
+  int32_t scale = 1;
+  for (uint8_t i = 0; i < fracDigits; i++) scale *= 10;
 
-//----ALT-----
-void DisplayControl::replaceAt(char* dest, int pos, const char* insert) {
-  size_t lenDest = strlen(dest);
-  size_t lenInsert = strlen(insert);
+  // Runden
+  int32_t value = (int32_t)(floatValue * scale + (floatValue >= 0 ? 0.5f : -0.5f));
 
-  // Sicherheitscheck: Wenn Position größer als Länge → ans Ende schreiben
-  if (pos > lenDest) pos = lenDest;
+  bool negative = value < 0;
+  value = abs(value);
 
-  // Temporären Speicher für den Rest anlegen
-  char temp[25];  // ausreichend groß wählen!
-  strcpy(temp, &dest[pos + lenInsert]);
+  int32_t intPart = value / scale;
+  int32_t fracPart = value % scale;
 
-  // Schreibe die neue Zeichenkette an die gewünschte Position
-  memcpy(&dest[pos], insert, lenInsert);
+  // verfügbare Integer-Stellen
+  uint8_t availInt = negative ? (intDigits - 1) : intDigits;
 
-  // Hänge den vorher gespeicherten Rest wieder hinten dran
-  strcpy(&dest[pos + lenInsert], temp);
-}
-void DisplayControl::formatVtl4(float Vtl, char* buffer) {  // Funktion: Float -> "00,0"-String
-  // Überlaufbehandlung
-  if (Vtl < 0) {
-    strcpy(buffer, "XX,X");
-    return;
-  }
-  if (Vtl > 99.9) {
-    strcpy(buffer, "XX,X");
-    return;
-  }
+  // max darstellbarer Integer-Wert
+  int32_t maxInt = 1;
+  for (uint8_t i = 0; i < availInt; i++) maxInt *= 10;
 
-  // Rundung auf eine Nachkommastelle
-  int Vtl_int = (int)(Vtl * 10.0 + (Vtl >= 0 ? 0.5 : -0.5));
+  // Überlauf
+  if (intPart >= maxInt) {
+    if (negative) buffer[0] = '-';
 
-  // Ganzzahl- und Nachkommastellen extrahieren
-  int vorn = abs(Vtl_int / 10);
-  int hinten = abs(Vtl_int % 10);
-
-  sprintf(buffer, "%2d,%1d", vorn, hinten);  // z. B. " 12,3"
-}
-void DisplayControl::formatWeight5(float weight, char* buffer) {  // Funktion: Float -> "000,0"-String
-  weight = weight / 1000;                                         //Umrechnung von Gramm in kg
-  // Überlaufbehandlung
-  if (weight < -99.9) {
-    strcpy(buffer, "-XX,X");
-    return;
-  }
-  if (weight > 999.9) {
-    strcpy(buffer, "XXX,X");
+    // XX,XX schreiben (rechtsbündig)
+    int8_t pos = width - 1;
+    for (uint8_t i = 0; i < fracDigits; i++) buffer[pos--] = 'X';
+    buffer[pos--] = ',';
+    for (uint8_t i = 0; i < availInt; i++) buffer[pos--] = 'X';
     return;
   }
 
-  // Rundung auf eine Nachkommastelle
-  int gewicht_int = (int)(weight * 10.0 + (weight >= 0 ? 0.5 : -0.5));
+  int8_t pos = width - 1;
 
-  // Ganzzahl- und Nachkommastellen extrahieren
-  int vorn = abs(gewicht_int / 10);
-  int hinten = abs(gewicht_int % 10);
+  // Nachkommastellen
+  for (uint8_t i = 0; i < fracDigits; i++) {
+    buffer[pos--] = '0' + (fracPart % 10);
+    fracPart /= 10;
+  }
 
-  // Formatieren abhängig von Vorzeichen
-  if (weight < 0) {
-    // Platz für '-' berücksichtigen (max. -99,9)
-    sprintf(buffer, "-%2d,%1d", vorn, hinten);  // z. B. -12,3 → "-12,3"
+  // Komma
+  buffer[pos--] = ',';
+
+  // Integerteil
+  if (intPart == 0) {
+    buffer[pos--] = '0';
   } else {
-    // Rechtsbündig mit Leerzeichen für positive Werte
-    sprintf(buffer, "%3d,%1d", vorn, hinten);  // z. B. " 12,3"
-  }
-}
-void DisplayControl::formatWeight6(float weight, char* buffer) {  // Funktion: Float -> "0000,0"-String
-  weight = weight / 1000;                                         //Umrechnung von Gramm in kg
-  // Überlaufbehandlung
-  if (weight < -999.9) {
-    strcpy(buffer, "-XXX,X");
-    return;
-  }
-  if (weight > 9999.9) {
-    strcpy(buffer, "XXXX,X");
-    return;
+    while (intPart > 0 && pos >= 0) {
+      buffer[pos--] = '0' + (intPart % 10);
+      intPart /= 10;
+    }
   }
 
-  // Rundung auf eine Nachkommastelle
-  int gewicht_int = (int)(weight * 10.0 + (weight >= 0 ? 0.5 : -0.5));
-
-  // Ganzzahl- und Nachkommastellen extrahieren
-  int vorn = abs(gewicht_int / 10);
-  int hinten = abs(gewicht_int % 10);
-
-  // Formatieren abhängig von Vorzeichen
-  if (weight < 0) {
-    // Platz für '-' berücksichtigen (max. -99,9)
-    sprintf(buffer, "-%3d,%1d", vorn, hinten);  // z. B. -12,3 → "-12,3"
-  } else {
-    // Rechtsbündig mit Leerzeichen für positive Werte
-    sprintf(buffer, "%4d,%1d", vorn, hinten);  // z. B. " 12,3"
-  }
+  // Minuszeichen fix links
+  if (negative) buffer[0] = '-';
 }

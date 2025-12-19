@@ -61,7 +61,6 @@ void messageReceived(const esp_now_recv_info* info, const uint8_t* incomingData,
   // }
   // Serial.println(")");
 
-  display.updateWeight(waagenMsg.gewicht, waagenMsg.waagenNummer); //fällt dann raus!
   waagen[waagenMsg.waagenNummer]->updateScale(waagenMsg.gewicht, waagenMsg.statusFlag, waagenMsg.timestamp);
 }
 
@@ -79,7 +78,6 @@ void printMAC(uint8_t* mac) {
 void setup() {
   oneButton.begin(tasterPin);
   display.begin();
-  display.updateScreen();
   memcpy(myAddress, MasterAddress, sizeof(myAddress));
   Serial.begin(115200);
   delay(1000);
@@ -107,7 +105,7 @@ void setup() {
 
   display.clear();
   display.setStandardansicht();
-  // waagenDaten[0].gewicht = 5000;
+
 
   waagen[LV]->updateScale(5000.0, Default, 0);
 }
@@ -122,6 +120,7 @@ void loop() {
   TasterEvent event = oneButton.update();
   switch (event) {
     case KURZER_DRUCK:
+      display.nextAnsicht();
       Serial.println("Kurzer Druck");
       display.nextAnsicht();
       break;
@@ -141,9 +140,9 @@ void loop() {
       break;
   }
 
-  display.newUpdateScreen();
+  display.newUpdateScreen(waagen);
 
-  delay(500);
+  // delay(500);
   if (millis() - lastChange > 2000) {
     lastChange = millis();
     gew = gew + 1000;

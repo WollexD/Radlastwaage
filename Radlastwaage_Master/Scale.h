@@ -13,15 +13,15 @@ public:
 class Scale : public Event<ScaleListener> {
 public:
   Scale(DeviceIndex n) : _scaleNumber(n) {};  // Konstruktor muss noch überarbeitet werden!
-  bool getChanged();
-  float getWeight();
+  bool getChanged() const;
+  float getWeight() const;
   bool updateScale(float newWeight, StatusFlags newStatus, unsigned long newTimeStamp);
 
   // bool isTimetoLong...
+  DeviceIndex _scaleNumber;
 
 private:
   StatusFlags _status = CalibrationRequired;
-  DeviceIndex _scaleNumber;
   bool _changed = false;
   bool _changedWeigth = false;
   bool _changedStatus = false;

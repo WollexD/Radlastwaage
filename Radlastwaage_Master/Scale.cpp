@@ -1,10 +1,10 @@
 #include "Scale.h"
 
-bool Scale::getChanged() {
+bool Scale::getChanged() const{
   return this->_changed;
 };
 
-float Scale::getWeight() {
+float Scale::getWeight() const {
   return this->_weight;
 }
 
