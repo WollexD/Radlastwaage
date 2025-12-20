@@ -16,6 +16,7 @@ class TasterControl {
 public:
   TasterControl();
   void begin(uint8_t pin, bool usePullup = false);
+  bool isBlocking();
   TasterEvent update();
 
 private:

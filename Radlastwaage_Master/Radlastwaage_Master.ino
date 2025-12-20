@@ -142,7 +142,9 @@ void loop() {
       break;
   }
 
-  display.updateScreen();
+  if (!oneButton.isBlocking()) {
+    display.updateScreen();
+  }
 
   // delay(500);
   if (millis() - lastChange > 2000) {

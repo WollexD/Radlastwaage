@@ -16,6 +16,10 @@ void TasterControl::begin(uint8_t pin, bool usePullup) {
   }
 }
 
+bool TasterControl::isBlocking(){
+  return _clickPending;
+}
+
 TasterEvent TasterControl::update() {
   bool reading = digitalRead(_pin);
   TasterEvent event = KEIN_EVENT;
