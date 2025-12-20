@@ -1,5 +1,10 @@
 #include "Scale.h"
 
+
+Scale::Scale(DeviceIndex n)
+  : _scaleNumber(n) {
+};
+
 bool Scale::getChanged() const {
   return this->_changed;
 };
@@ -52,9 +57,20 @@ bool Scale::updateScale(float newWeight, StatusFlags newStatus, unsigned long ne
   }
   return false;
 }
+
+// void Scale::registerAt(DisplayControl& display) {
+//     display.addToAllScalesList(this);
+// }
+
 void Scale::deaktivatOnListeners() {
   for (int i = 0; i < listenerCount; i++) {
     listeners[i]->deactivateScale(this);
+  }
+}
+
+void Scale::addMeToAllScallesList() {
+  for (int i = 0; i < listenerCount; i++) {
+    listeners[i]->addToAllScalesList(this);
   }
 }
 

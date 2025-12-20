@@ -1,7 +1,8 @@
-#include "esp32-hal.h"
-#include "DisplayControl.h"
+#include <map>
 #include <vector>
 #include <algorithm>
+#include "esp32-hal.h"
+#include "DisplayControl.h"
 
 DisplayControl::DisplayControl()
   : lcd(ADDR, ROWS, COLL) {}
@@ -20,9 +21,13 @@ void DisplayControl::begin() {
   lcd.clear();
 }
 
-
 void DisplayControl::clear() {
   lcd.clear();
+}
+
+float DisplayControl::getWeight(DeviceIndex idx) const {
+  auto it = allScales.find(idx);
+  return (it != allScales.end()) ? it->second->getWeight() : 0.0f;
 }
 
 
@@ -41,6 +46,12 @@ void DisplayControl::deactivateScale(Scale* caller) {
     std::remove(activeScales.begin(), activeScales.end(), caller),
     activeScales.end());
 }
+
+void DisplayControl::addToAllScalesList(Scale* caller) {
+  DeviceIndex idx = caller->getIndex();
+  allScales[idx] = caller;  // überschreibt automatisch, falls schon vorhanden
+}
+
 
 void DisplayControl::calibrierungsText(int status) {
   lcd.clear();
@@ -102,11 +113,10 @@ void DisplayControl::calibrierungsText(int status) {
 }
 
 //noch fixen
-float DisplayControl::calcProzent(Scale* (&waagen)[4], DeviceIndex index) {
+float DisplayControl::calcProzent(DeviceIndex index) {
   //10 = Vorne 20 = hinten, 0 = LV, 1 = LH, 2 = RV, 3 = RH
-
-  float gewichtVorne = waagen[LV]->getWeight() + waagen[RV]->getWeight();
-  float gewichtHinten = waagen[LH]->getWeight() + waagen[RH]->getWeight();
+  float gewichtVorne = getWeight(LV) + getWeight(RV);
+  float gewichtHinten = getWeight(LH) + getWeight(RH);
   float gewichtGesamt = gewichtVorne + gewichtHinten;
 
   // Prevent division by zero
@@ -126,19 +136,19 @@ float DisplayControl::calcProzent(Scale* (&waagen)[4], DeviceIndex index) {
       break;
 
     case LV:
-      return (waagen[LV]->getWeight() / gewichtGesamt) * 100;
+      return (getWeight(LV) / gewichtGesamt) * 100;
       break;
 
     case LH:
-      return (waagen[LH]->getWeight() / gewichtGesamt) * 100;
+      return (getWeight(LH) / gewichtGesamt) * 100;
       break;
 
     case RV:
-      return (waagen[RV]->getWeight() / gewichtGesamt) * 100;
+      return (getWeight(RV) / gewichtGesamt) * 100;
       break;
 
     case RH:
-      return (waagen[RH]->getWeight() / gewichtGesamt) * 100;
+      return (getWeight(RH) / gewichtGesamt) * 100;
       break;
 
     default:
@@ -147,8 +157,8 @@ float DisplayControl::calcProzent(Scale* (&waagen)[4], DeviceIndex index) {
   return 0;
 }
 
-float DisplayControl::calcGesamtMasse(Scale* (&waagen)[4]) {
-  return waagen[0]->getWeight() + waagen[1]->getWeight() + waagen[2]->getWeight() + waagen[3]->getWeight();
+float DisplayControl::calcGesamtMasse() {
+  return getWeight(LV) + getWeight(RV) + getWeight(LH) + getWeight(RH);
 }
 
 
@@ -226,11 +236,10 @@ bool DisplayControl::bgNeedRefresh() {
 
 
 
-void DisplayControl::updateScreen(Scale* (&waagen)[4]) {
+void DisplayControl::updateScreen() {
   if (!(!_needUpdate || bgNeedRefresh() || !changedScales.empty())) {
     return;
   }
-
 
   switch (this->_ansicht) {
     case 1:  //Ansicht 1 (Auto mit Radgewichten)
@@ -247,11 +256,11 @@ void DisplayControl::updateScreen(Scale* (&waagen)[4]) {
       changedScales.clear();
       // for (DeviceIndex i = DeviceIndex::LV; i < DeviceIndex::MASTER; ++i) {
 
-      //   replaceAtCoordinate(carPos[static_cast<int>(i)][0] + 1, carPos[static_cast<int>(i)][1] + 1, 2, 2, calcProzent(waagen, i), FORMAT_PERCENT);
+      //   replaceAtCoordinate(carPos[static_cast<int>(i)][0] + 1, carPos[static_cast<int>(i)][1] + 1, 2, 2, calcProzent(i), FORMAT_PERCENT);
       // }
 
       for (const Scale* w : activeScales) {
-        replaceAtCoordinate(carPos[w->getIndex()][0] + 1, carPos[w->getIndex()][1] + 1, 2, 2, calcProzent(waagen, w->getIndex()), FORMAT_PERCENT);
+        replaceAtCoordinate(carPos[w->getIndex()][0] + 1, carPos[w->getIndex()][1] + 1, 2, 2, calcProzent(w->getIndex()), FORMAT_PERCENT);
       }
       // replaceAtCoordinate(0, 0, 4, 2, waagen[LV]->getWeight());
       // replaceAtCoordinate(0, 3, 4, 2, waagen[LH]->getWeight());
@@ -279,9 +288,9 @@ void DisplayControl::updateScreen(Scale* (&waagen)[4]) {
         changedScales.clear();
       }
 
-      replaceAtCoordinate(10, 1, 5, 2, calcGesamtMasse(waagen));
-      replaceAtCoordinate(15, 2, 2, 1, calcProzent(waagen, Vorne), FORMAT_PERCENT);
-      replaceAtCoordinate(15, 3, 2, 1, calcProzent(waagen, Hinten), FORMAT_PERCENT);
+      replaceAtCoordinate(10, 1, 5, 2, calcGesamtMasse());
+      replaceAtCoordinate(15, 2, 2, 1, calcProzent(Vorne), FORMAT_PERCENT);
+      replaceAtCoordinate(15, 3, 2, 1, calcProzent(Hinten), FORMAT_PERCENT);
       break;
   }
 

@@ -2,6 +2,7 @@
 #ifndef DISPLAYCONTROL_H
 #define DISPLAYCONTROL_H
 
+#include <map>
 #include <Arduino.h>
 #include <LiquidCrystal_I2C.h>
 #include "Scale.h"
@@ -32,17 +33,20 @@ public:
   void setStandardansicht();
   void nextAnsicht();
 
-  float calcProzent(Scale* (&waagen)[4], DeviceIndex index);
-  float calcGesamtMasse(Scale* (&waagen)[4]);
+  float calcProzent(DeviceIndex index);
+  float calcGesamtMasse();
 
-  void updateScreen(Scale* (&waagen)[4]);
+  void updateScreen();
 
 
   void DrawBGStandard();
   void DrawBGAuto();
 
+
+
   void onWeightChanged(Scale* caller) override;  //+activateScale
   void deactivateScale(Scale* caller) override;
+  void addToAllScalesList(Scale* caller) override;
 
 
 
@@ -53,6 +57,7 @@ private:
   bool _needUpdate = true;
   std::vector<const Scale*> changedScales;
   std::vector<const Scale*> activeScales;
+  std::map<DeviceIndex, Scale*> allScales;
 
   const uint8_t ADDR = 0x27;
   const uint8_t ROWS = 20;
@@ -137,6 +142,7 @@ private:
   void formatFloatToChar(float value, char* buffer, uint8_t intDigits, uint8_t fracDigits, FormatMode mode);
   void replaceAtCoordinate(int coll, int row, int digit, int nachkommastellen, float wert, FormatMode mode);
   bool bgNeedRefresh();
+  float getWeight(DeviceIndex idx) const ;
 };
 
 #endif

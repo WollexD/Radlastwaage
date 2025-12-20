@@ -9,12 +9,12 @@ class ScaleListener {
 public:
   virtual void onWeightChanged(Scale* caller) = 0;
   virtual void deactivateScale(Scale* caller) = 0;
+  virtual void addToAllScalesList(Scale* caller) = 0;
 };
 
 class Scale : public Event<ScaleListener> {
 public:
-  Scale(DeviceIndex n)
-    : _scaleNumber(n){};  // Konstruktor muss noch überarbeitet werden!
+  Scale(DeviceIndex n);  // Konstruktor muss noch überarbeitet werden!
   bool getChanged() const;
   float getWeight() const;
   DeviceIndex getIndex() const;
@@ -23,6 +23,7 @@ public:
 
   // bool isTimetoLong...
   DeviceIndex _scaleNumber;
+  void addMeToAllScallesList();
 
 private:
   StatusFlags _status = CalibrationRequired;
@@ -38,4 +39,5 @@ private:
 
   void notifyListeners();
   void deaktivatOnListeners();
+  // void registerAt(DisplayControl& display);
 };

@@ -85,7 +85,10 @@ void setup() {
   for (DeviceIndex i = DeviceIndex::LV; i < DeviceIndex::MASTER; ++i) {
     waagen[static_cast<int>(i)] = new Scale(i);
     waagen[static_cast<int>(i)]->addListener(&display);
+    waagen[static_cast<int>(i)]->addMeToAllScallesList();
   }
+
+
 
   WiFi.mode(WIFI_STA);
 
@@ -139,7 +142,7 @@ void loop() {
       break;
   }
 
-  display.updateScreen(waagen);
+  display.updateScreen();
 
   // delay(500);
   if (millis() - lastChange > 2000) {
