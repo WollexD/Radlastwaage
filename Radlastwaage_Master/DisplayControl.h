@@ -17,7 +17,8 @@
 
 enum FormatMode {
   FORMAT_WEIGHT,
-  FORMAT_PERCENT
+  FORMAT_PERCENT,
+  FORMAT_STRING,
 };
 
 class DisplayControl : public ScaleListener {

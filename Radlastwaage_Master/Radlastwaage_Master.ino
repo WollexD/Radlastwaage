@@ -147,13 +147,13 @@ void loop() {
   }
 
   // delay(500);
-  if (millis() - lastChange > 2000) {
+  if (millis() - lastChange > 200) {
     lastChange = millis();
     gew = gew + 1000;
     waagen[LV]->updateScale(gew, Default, 0);
   }
 
-  if (millis() - lastChange2 > 1000) {
+  if (millis() - lastChange2 > 100) {
     lastChange2 = millis();
     gew2 = gew2 + 1000;
     waagen[RH]->updateScale(gew2, Default, 0);

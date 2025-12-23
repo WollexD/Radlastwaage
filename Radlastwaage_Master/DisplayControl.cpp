@@ -165,9 +165,13 @@ float DisplayControl::calcGesamtMasse() {
 
 //----NEU-----
 void DisplayControl::replaceAtCoordinate(int coll, int row, int digit, int nachkommastellen, float wert, FormatMode mode = FORMAT_WEIGHT) {
+  lcd.setCursor(coll, row);
+  if ((mode == FORMAT_STRING) && ((digit + nachkommastellen + 1) >= 4)) {
+    lcd.print(" N.C.");
+    return;
+  }
   char formattedString[digit + nachkommastellen + 1];
   formatFloatToChar(wert, formattedString, digit, nachkommastellen, mode);
-  lcd.setCursor(coll, row);
   lcd.print(formattedString);
 }
 
@@ -275,8 +279,14 @@ void DisplayControl::updateScreen() {
       if (bgNeedRefresh()) {
         DrawBGStandard();
         _bgLastRefreshTime = millis();
-        for (const Scale* w : activeScales) {
-          replaceAtCoordinate(2, w->_scaleNumber, 3, 1, w->getWeight());
+        for (const auto& entry : allScales) {
+          const DeviceIndex idx = entry.first;
+          const Scale* w = entry.second;
+          if (w->getStatus() == Default) {
+            replaceAtCoordinate(2, w->getIndex(), 3, 1, w->getWeight());
+          } else {
+            replaceAtCoordinate(2, w->getIndex(), 3, 1, 0.0f, FORMAT_STRING);
+          }
         }
       } else {
 

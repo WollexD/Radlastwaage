@@ -13,6 +13,10 @@ float Scale::getWeight() const {
   return this->_weight;
 }
 
+StatusFlags Scale::getStatus() const {
+  return this->_status;
+}
+
 DeviceIndex Scale::getIndex() const {
   return this->_scaleNumber;
 }

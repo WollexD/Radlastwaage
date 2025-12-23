@@ -18,6 +18,7 @@ public:
   bool getChanged() const;
   float getWeight() const;
   DeviceIndex getIndex() const;
+  StatusFlags getStatus() const;
   bool scaleAlive();
   bool updateScale(float newWeight, StatusFlags newStatus, unsigned long newTimeStamp);
 
