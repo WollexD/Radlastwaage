@@ -164,10 +164,10 @@ float DisplayControl::calcGesamtMasse() {
 
 
 //----NEU-----
-void DisplayControl::replaceAtCoordinate(int coll, int row, int digit, int nachkommastellen, float wert, FormatMode mode = FORMAT_WEIGHT) {
+void DisplayControl::replaceAtCoordinate(int coll, int row, int digit, int nachkommastellen, float wert, FormatMode mode = FORMAT_WEIGHT, StatusFlags status = Default) {
   lcd.setCursor(coll, row);
   if ((mode == FORMAT_STRING) && ((digit + nachkommastellen + 1) >= 4)) {
-    lcd.print(" N.C.");
+    place5CharStatusCode(status);
     return;
   }
   char formattedString[digit + nachkommastellen + 1];
@@ -285,7 +285,7 @@ void DisplayControl::updateScreen() {
           if (w->getStatus() == Default) {
             replaceAtCoordinate(2, w->getIndex(), 3, 1, w->getWeight());
           } else {
-            replaceAtCoordinate(2, w->getIndex(), 3, 1, 0.0f, FORMAT_STRING);
+            replaceAtCoordinate(2, w->getIndex(), 3, 1, 0.0f, FORMAT_STRING, w->getStatus());
           }
         }
       } else {
@@ -380,4 +380,57 @@ void DisplayControl::formatFloatToChar(float floatValue, char* buffer, uint8_t i
 
   // Minuszeichen fix links
   if (negative) buffer[0] = '-';
+}
+
+void DisplayControl::place5CharStatusCode(StatusFlags status) {
+  switch (status) {
+    case Default:
+      lcd.print(" Def.");
+      break;
+    case ScaleCalibrated:
+      lcd.print("S.C.d");
+      break;
+    case ScaleNewStarted:
+      lcd.print("S.N.S");
+      break;
+    case Error:
+      lcd.print("Error");
+      break;
+    case ErrorConnection:
+      lcd.print("ErCon");
+      break;
+    case ErrorCalibration:
+      lcd.print("ErCal");
+      break;
+    case ErrorSensor:
+      lcd.print("ErSen");
+      break;
+    case CalibrationRequired:
+      lcd.print("CaReq");
+      break;
+    case CalibrationWaitRemoveAllWeight:
+      lcd.print("CaWRW");
+      break;
+    case CalibrationWaitAfterZeroing:
+      lcd.print("CaWAZ");
+      break;
+    case CalibrationWaitPlaceWeight:
+      lcd.print("CaWPW");
+      break;
+    case CalibrationWorkingZeroing:
+      lcd.print("CaWZe");
+      break;
+    case CalibrationWorkingInProgress:
+      lcd.print("CaWIP");
+      break;
+    case CalibrationCompleted:
+      lcd.print("CaCom");
+      break;
+    case CalibrationFailed:
+      lcd.print("CaFai");
+      break;
+    default:
+      lcd.print("X-X-X");
+      break;
+  }
 }

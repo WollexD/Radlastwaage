@@ -141,9 +141,10 @@ private:
   };
 
   void formatFloatToChar(float value, char* buffer, uint8_t intDigits, uint8_t fracDigits, FormatMode mode);
-  void replaceAtCoordinate(int coll, int row, int digit, int nachkommastellen, float wert, FormatMode mode);
+  void replaceAtCoordinate(int coll, int row, int digit, int nachkommastellen, float wert, FormatMode mode, StatusFlags status);
   bool bgNeedRefresh();
   float getWeight(DeviceIndex idx) const ;
+  void place5CharStatusCode(StatusFlags status);
 };
 
 #endif

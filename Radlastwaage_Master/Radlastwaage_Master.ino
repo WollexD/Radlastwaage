@@ -131,6 +131,7 @@ void loop() {
       break;
     case LANGER_DRUCK:
       Serial.println("Langer Druck");
+      waagen[LH]->updateScale(0.0f, ErrorCalibration, 0);
       break;
     case SEHR_LANGER_DRUCK:
       Serial.println("Sehr langer Druck");
