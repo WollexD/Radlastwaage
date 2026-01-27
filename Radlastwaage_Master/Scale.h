@@ -34,8 +34,8 @@ private:
   bool _changedTime = false;
   float _weight = 0;
   unsigned long _lastTimestamp;
-  unsigned long _lastTimestampOnMaster;
-  unsigned long _currentTimestamp;
+  unsigned long _lastTimestampOnMaster = millis();
+  unsigned long _currentTimestamp = millis();
   uint8_t _scaleAdress[6] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
   void notifyListeners();

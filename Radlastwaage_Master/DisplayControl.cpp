@@ -30,7 +30,6 @@ float DisplayControl::getWeight(DeviceIndex idx) const {
   return (it != allScales.end()) ? it->second->getWeight() : 0.0f;
 }
 
-
 void DisplayControl::onWeightChanged(Scale* caller) {
   // Prüfen, ob Waage schon in der Liste ist (keine doppelten Einträge)
   if (std::find(changedScales.begin(), changedScales.end(), caller) == changedScales.end()) {
@@ -45,13 +44,15 @@ void DisplayControl::deactivateScale(Scale* caller) {
   activeScales.erase(
     std::remove(activeScales.begin(), activeScales.end(), caller),
     activeScales.end());
+  if (std::find(changedScales.begin(), changedScales.end(), caller) == changedScales.end()) {
+    changedScales.push_back(caller);
+  }
 }
 
 void DisplayControl::addToAllScalesList(Scale* caller) {
   DeviceIndex idx = caller->getIndex();
   allScales[idx] = caller;  // überschreibt automatisch, falls schon vorhanden
 }
-
 
 void DisplayControl::calibrierungsText(int status) {
   lcd.clear();
@@ -163,7 +164,7 @@ float DisplayControl::calcGesamtMasse() {
 
 
 
-//----NEU-----
+//----Platzieren von KG/%/5CharStatusCode -- Funktionen zur Formtierung und Platzierung -----
 void DisplayControl::replaceAtCoordinate(int coll, int row, int digit, int nachkommastellen, float wert, FormatMode mode = FORMAT_WEIGHT, StatusFlags status = Default) {
   lcd.setCursor(coll, row);
   if ((mode == FORMAT_STRING) && ((digit + nachkommastellen + 1) >= 4)) {
@@ -173,138 +174,6 @@ void DisplayControl::replaceAtCoordinate(int coll, int row, int digit, int nachk
   char formattedString[digit + nachkommastellen + 1];
   formatFloatToChar(wert, formattedString, digit, nachkommastellen, mode);
   lcd.print(formattedString);
-}
-
-
-//----Ansichtensteuerung----Start----
-void DisplayControl::changeAnsicht(int newAnsicht) {
-  this->_ansicht = newAnsicht;
-  this->_bgLastRefreshTime = 0;
-  _needUpdate = true;
-}
-
-void DisplayControl::nextAnsicht() {
-  changeAnsicht((this->_ansicht + 1) % _ansichtCount);
-}
-
-void DisplayControl::setStandardansicht() {
-  changeAnsicht(0);
-}
-//----Ansichtensteuerung----Ende----
-
-
-//----Hintergründe+Steuerung----Start----
-void DisplayControl::DrawBGStandard() {
-  lcd.setCursor(0, 0);
-  lcd.print("LV N.C.kg|Gesamt:   ");
-  lcd.setCursor(0, 1);
-  lcd.print("LH N.C.kg|        kg");
-  lcd.setCursor(0, 2);
-  lcd.print("RV N.C.kg|VtlVA    %");
-  lcd.setCursor(0, 3);
-  lcd.print("RH N.C.kg|VtlHA    %");
-}
-
-void DisplayControl::DrawBGAuto() {
-  lcd.setCursor(0, 0);
-  lcd.print("  N.C.kg");
-  lcd.write(byte(2));
-  lcd.write(byte(1));
-  lcd.write(byte(1));
-  lcd.write(byte(4));
-  lcd.print("  N.C.kg");
-
-  lcd.setCursor(0, 1);
-  lcd.print("  N.C.% |  |  N.C.% ");
-
-  lcd.setCursor(0, 2);
-  lcd.print("  N.C.kg|  |  N.C.kg");
-
-  lcd.setCursor(0, 3);
-  lcd.print("  N.C.% ");
-  lcd.write(byte(3));
-  lcd.write(byte(6));
-  lcd.write(byte(6));
-  lcd.write(byte(5));
-  lcd.print("  N.C.% ");
-}
-
-bool DisplayControl::bgNeedRefresh() {
-  if (millis() - this->_bgLastRefreshTime >= this->_bgRefreshTime) {
-    // _bgLastRefreshTime = millis(); Zurücksetzten darf erst nach aktuallisierung erfolgen
-    return true;
-  }
-  return false;
-}
-//----Hintergründe+Steuerung----Ende----
-
-
-
-void DisplayControl::updateScreen() {
-  if (!(!_needUpdate || bgNeedRefresh() || !changedScales.empty())) {
-    return;
-  }
-
-  switch (this->_ansicht) {
-    case 1:  //Ansicht 1 (Auto mit Radgewichten)
-      if (bgNeedRefresh()) {
-        DrawBGAuto();
-        _bgLastRefreshTime = millis();
-      }
-
-      // Nur Waagen updaten, die sich geändert haben
-      for (const Scale* w : changedScales) {
-        replaceAtCoordinate(carPos[w->_scaleNumber][0], carPos[w->_scaleNumber][1], 3, 2, w->getWeight());
-      }
-      // Nach dem Durchlauf Liste leeren
-      changedScales.clear();
-      // for (DeviceIndex i = DeviceIndex::LV; i < DeviceIndex::MASTER; ++i) {
-
-      //   replaceAtCoordinate(carPos[static_cast<int>(i)][0] + 1, carPos[static_cast<int>(i)][1] + 1, 2, 2, calcProzent(i), FORMAT_PERCENT);
-      // }
-
-      for (const Scale* w : activeScales) {
-        replaceAtCoordinate(carPos[w->getIndex()][0] + 1, carPos[w->getIndex()][1] + 1, 2, 2, calcProzent(w->getIndex()), FORMAT_PERCENT);
-      }
-      // replaceAtCoordinate(0, 0, 4, 2, waagen[LV]->getWeight());
-      // replaceAtCoordinate(0, 3, 4, 2, waagen[LH]->getWeight());
-      // replaceAtCoordinate(13, 0, 4, 2, waagen[RV]->getWeight());
-      // replaceAtCoordinate(13, 3, 4, 2, waagen[RH]->getWeight());
-
-
-
-      break;
-
-    default:  //Ansicht 0 bzw. Standardansicht
-      if (bgNeedRefresh()) {
-        DrawBGStandard();
-        _bgLastRefreshTime = millis();
-        for (const auto& entry : allScales) {
-          const DeviceIndex idx = entry.first;
-          const Scale* w = entry.second;
-          if (w->getStatus() == Default) {
-            replaceAtCoordinate(2, w->getIndex(), 3, 1, w->getWeight());
-          } else {
-            replaceAtCoordinate(2, w->getIndex(), 3, 1, 0.0f, FORMAT_STRING, w->getStatus());
-          }
-        }
-      } else {
-
-        // Nur Waagen updaten, die sich geändert haben
-        for (const Scale* w : changedScales) {
-          replaceAtCoordinate(2, w->_scaleNumber, 3, 1, w->getWeight());
-        }
-        // Nach dem Durchlauf Liste leeren
-        changedScales.clear();
-      }
-
-      replaceAtCoordinate(10, 1, 5, 2, calcGesamtMasse());
-      replaceAtCoordinate(15, 2, 2, 1, calcProzent(Vorne), FORMAT_PERCENT);
-      replaceAtCoordinate(15, 3, 2, 1, calcProzent(Hinten), FORMAT_PERCENT);
-      break;
-  }
-
-  _needUpdate = false;
 }
 
 void DisplayControl::formatFloatToChar(float floatValue, char* buffer, uint8_t intDigits, uint8_t fracDigits, FormatMode mode) {
@@ -433,4 +302,138 @@ void DisplayControl::place5CharStatusCode(StatusFlags status) {
       lcd.print("X-X-X");
       break;
   }
+}
+
+//----Ansichtensteuerung----Start----
+void DisplayControl::changeAnsicht(int newAnsicht) {
+  this->_ansicht = newAnsicht;
+  this->_bgForcedRefreshNeeded = true;
+  this->_bgLastRefreshTime = 0;
+  _needUpdate = true;
+}
+
+void DisplayControl::nextAnsicht() {
+  changeAnsicht((this->_ansicht + 1) % _ansichtCount);
+}
+
+void DisplayControl::setStandardansicht() {
+  changeAnsicht(0);
+}
+//----Ansichtensteuerung----Ende----
+
+
+//----Hintergründe+Steuerung----Start----
+void DisplayControl::DrawBGStandard() {
+  lcd.setCursor(0, 0);
+  lcd.print("LV     kg|Gesamt:   ");
+  lcd.setCursor(0, 1);
+  lcd.print("LH     kg|        kg");
+  lcd.setCursor(0, 2);
+  lcd.print("RV     kg|VtlVA    %");
+  lcd.setCursor(0, 3);
+  lcd.print("RH     kg|VtlHA    %");
+}
+
+void DisplayControl::DrawBGAuto() {
+  lcd.setCursor(0, 0);
+  lcd.print("      kg");
+  lcd.write(byte(2));
+  lcd.write(byte(1));
+  lcd.write(byte(1));
+  lcd.write(byte(4));
+  lcd.print("      kg");
+
+  lcd.setCursor(0, 1);
+  lcd.print("      % |  |      % ");
+
+  lcd.setCursor(0, 2);
+  lcd.print("      kg|  |      kg");
+
+  lcd.setCursor(0, 3);
+  lcd.print("      % ");
+  lcd.write(byte(3));
+  lcd.write(byte(6));
+  lcd.write(byte(6));
+  lcd.write(byte(5));
+  lcd.print("      % ");
+}
+
+bool DisplayControl::bgNeedRefresh(bool reset = true) {
+  bool erg = false;
+
+  if (millis() - this->_bgLastRefreshTime >= this->_bgRefreshTime) {
+    // _bgLastRefreshTime = millis(); Zurücksetzten darf erst nach aktuallisierung erfolgen
+    erg = true;
+  }
+  if (this->_bgForcedRefreshNeeded) {
+    erg = true;
+  }
+
+  if (erg && reset) {
+    this->_bgLastRefreshTime = millis();
+    this->_bgForcedRefreshNeeded = false;
+  }
+  return erg;
+}
+//----Hintergründe+Steuerung----Ende----
+
+
+
+void DisplayControl::updateScreen() {
+  if (!(!_needUpdate || bgNeedRefresh(false) || !changedScales.empty())) {
+    return;
+  }
+
+  switch (this->_ansicht) {
+    case 1:  //Ansicht 1 (Auto mit Radgewichten)
+      if (bgNeedRefresh()) {
+        DrawBGAuto();
+      }
+
+      // Nur Waagen updaten, die sich geändert haben
+      for (const Scale* w : changedScales) {
+        replaceAtCoordinate(carPos[w->_scaleNumber][0], carPos[w->_scaleNumber][1], 3, 2, w->getWeight());
+      }
+      // Nach dem Durchlauf Liste leeren
+      changedScales.clear();
+
+      for (const Scale* w : activeScales) {
+        replaceAtCoordinate(carPos[w->getIndex()][0] + 1, carPos[w->getIndex()][1] + 1, 2, 2, calcProzent(w->getIndex()), FORMAT_PERCENT);
+      }
+
+      break;
+
+    default:  //Ansicht 0 bzw. Standardansicht
+      if (bgNeedRefresh()) {
+        DrawBGStandard();
+        for (const auto& entry : allScales) {
+          const DeviceIndex idx = entry.first;
+          const Scale* w = entry.second;
+          if (w->getStatus() == Default) {
+            replaceAtCoordinate(2, w->getIndex(), 3, 1, w->getWeight());
+          } else {
+            replaceAtCoordinate(2, w->getIndex(), 3, 1, 0.0f, FORMAT_STRING, w->getStatus());
+          }
+        }
+      } else {
+
+        // Nur Waagen updaten, die sich geändert haben
+        for (const Scale* w : changedScales) {
+          if (w->getStatus() == Default) {
+            replaceAtCoordinate(2, w->_scaleNumber, 3, 1, w->getWeight());
+          } else {
+            replaceAtCoordinate(2, w->getIndex(), 3, 1, 0.0f, FORMAT_STRING, w->getStatus());
+          }
+        }
+        // Nach dem Durchlauf Liste leeren
+        changedScales.clear();
+      }
+
+      replaceAtCoordinate(10, 1, 5, 2, calcGesamtMasse());
+      replaceAtCoordinate(15, 2, 2, 1, calcProzent(Vorne), FORMAT_PERCENT);
+      replaceAtCoordinate(15, 3, 2, 1, calcProzent(Hinten), FORMAT_PERCENT);
+      break;
+  }
+
+  _needUpdate = false;
 }

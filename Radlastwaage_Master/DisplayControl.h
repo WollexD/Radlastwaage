@@ -64,6 +64,7 @@ private:
   const uint8_t ROWS = 20;
   const uint8_t COLL = 4;
   LiquidCrystal_I2C lcd;
+  bool _bgForcedRefreshNeeded = true;
   unsigned long _bgRefreshTime = 10000;
   unsigned long _bgLastRefreshTime = 0;
 
@@ -142,7 +143,7 @@ private:
 
   void formatFloatToChar(float value, char* buffer, uint8_t intDigits, uint8_t fracDigits, FormatMode mode);
   void replaceAtCoordinate(int coll, int row, int digit, int nachkommastellen, float wert, FormatMode mode, StatusFlags status);
-  bool bgNeedRefresh();
+  bool bgNeedRefresh(bool reset);
   float getWeight(DeviceIndex idx) const ;
   void place5CharStatusCode(StatusFlags status);
 };

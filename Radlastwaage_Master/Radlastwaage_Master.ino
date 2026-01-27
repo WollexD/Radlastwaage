@@ -131,7 +131,7 @@ void loop() {
       break;
     case LANGER_DRUCK:
       Serial.println("Langer Druck");
-      waagen[LH]->updateScale(0.0f, ErrorCalibration, 0);
+      waagen[LH]->updateScale(0.0f, ErrorCalibration, millis());
       break;
     case SEHR_LANGER_DRUCK:
       Serial.println("Sehr langer Druck");
@@ -147,16 +147,20 @@ void loop() {
     display.updateScreen();
   }
 
+  for (Scale* w : waagen){
+    bool alive = w->scaleAlive();
+  }
+
   // delay(500);
   if (millis() - lastChange > 200) {
     lastChange = millis();
     gew = gew + 1000;
-    waagen[LV]->updateScale(gew, Default, 0);
+    waagen[LV]->updateScale(gew, Default, millis());
   }
 
   if (millis() - lastChange2 > 100) {
     lastChange2 = millis();
     gew2 = gew2 + 1000;
-    waagen[RH]->updateScale(gew2, Default, 0);
+    waagen[RH]->updateScale(gew2, Default, millis());
   }
 }

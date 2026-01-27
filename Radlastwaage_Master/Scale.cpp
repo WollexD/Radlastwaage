@@ -2,8 +2,7 @@
 
 
 Scale::Scale(DeviceIndex n)
-  : _scaleNumber(n) {
-};
+  : _scaleNumber(n){};
 
 bool Scale::getChanged() const {
   return this->_changed;
@@ -23,12 +22,15 @@ DeviceIndex Scale::getIndex() const {
 
 bool Scale::scaleAlive() {
   if (millis() - this->_lastTimestampOnMaster >= 1000) {
-    this->_status = ErrorConnection;
-    this->_changed = true;
-    this->_changedStatus = true;
-    this->_weight = 0.0f;
-    deaktivatOnListeners();
-    return false;
+    this->_lastTimestampOnMaster = millis();
+    if (!(this->_status == ErrorConnection)) {
+      this->_status = ErrorConnection;
+      this->_changed = true;
+      this->_changedStatus = true;
+      this->_weight = 0.0f;
+      deaktivatOnListeners();
+      return false;
+    }
   }
   return true;
 }
