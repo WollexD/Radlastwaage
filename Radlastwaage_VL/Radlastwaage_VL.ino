@@ -92,12 +92,12 @@ void printMAC(const uint8_t* mac) {
 }
 
 void messageSent(const wifi_tx_info_t* macAddr, esp_now_send_status_t status) {
-  // Serial.print("Send status: ");
-  // if (status == ESP_NOW_SEND_SUCCESS) {
-  //   Serial.println("Success");
-  // } else {
-  //   Serial.println("Error");
-  // }
+  Serial.print("Send status: ");
+  if (status == ESP_NOW_SEND_SUCCESS) {
+    Serial.println("Success");
+  } else {
+    Serial.println("Error");
+  }
 }
 
 
@@ -204,7 +204,9 @@ void loop() {
   TasterEvent event = oneButton.update();
   switch (event) {
     case KURZER_DRUCK:
-      myscale.tare();
+      if (!calibration.isActive()) {
+        myscale.tare();
+      }
       Serial.println("Kurzer Druck");
       break;
     case DOPPELKLICK:
@@ -231,7 +233,7 @@ void loop() {
 
   //-------Gewicht Auslesen------------
   //-----+Median über Werte bilden---
-  if (myscale.is_ready()) {
+  if (myscale.is_ready() && !calibration.isActive()) {
     float gewicht = myscale.get_units();
     if (isfinite(gewicht)) {
       // Neuer Wert in Ringpuffer

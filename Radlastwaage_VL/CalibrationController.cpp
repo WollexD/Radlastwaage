@@ -10,72 +10,66 @@ CalibrationController::CalibrationController(HX711& scale,
     myMessage(message) {}
 
 void CalibrationController::start() {
-  active = true;
-  stepTimestamp = millis();
+  _active = true;
+  _stepTimestamp = millis();
+  myMessage.gewicht = 0;
   myMessage.statusFlag = CalibrationWaitRemoveAllWeight;
 
   Serial.println("\n======= CALIBRATION START =======");
 }
 
 bool CalibrationController::isActive() const {
-  return active;
+  return _active;
 }
 
 void CalibrationController::update() {
-  if (!active) return;
+  if (!_active) return;
 
   unsigned long now = millis();
 
   switch (myMessage.statusFlag) {
 
     case CalibrationWaitRemoveAllWeight:
-      Serial.println("CalibrationWaitRemoveAllWeight");
       if (digitalRead(tasterPin)) {
         myMessage.statusFlag = CalibrationWorkingZeroing;
-        stepTimestamp = now;
+        _stepTimestamp = now;
       }
 
       break;
 
     case CalibrationWorkingZeroing:
-      Serial.println("CalibrationWorkingZeroing");
-      if (now - stepTimestamp >= 1000) {
+      if (now - _stepTimestamp >= 1000) {
+        myscale.set_offset(0); // Alte Offsets löschen
         myscale.tare(20);
-        offset = myscale.get_offset();
-
-        Serial.print("OFFSET: ");
-        Serial.println(offset);
+        _offset = myscale.get_offset();
 
         myMessage.statusFlag = CalibrationWaitAfterZeroing;
       }
       break;
 
     case CalibrationWaitAfterZeroing:
-    Serial.println("CalibrationWaitAfterZeroing");
-      if (digitalRead(tasterPin) && now - stepTimestamp >= 1000) {
+      if (digitalRead(tasterPin) && now - _stepTimestamp >= 1000) {
         myMessage.statusFlag = CalibrationWaitPlaceWeight;
-        stepTimestamp = now;
+        _stepTimestamp = now;
       }
       break;
 
     case CalibrationWaitPlaceWeight:
-    Serial.println("CalibrationWaitPlaceWeight");
-      if (digitalRead(tasterPin) && now - stepTimestamp >= 1000) {
+      if (digitalRead(tasterPin) && now - _stepTimestamp >= 1000) {
         myMessage.statusFlag = CalibrationWorkingInProgress;
-        stepTimestamp = now;
+        _stepTimestamp = now;
       }
       break;
 
     case CalibrationWorkingInProgress:
-    Serial.println("CalibrationWorkingInProgress");
-      if (now - stepTimestamp >= 1000) {
+      if (now - _stepTimestamp >= 1000) {
 
-        float weight = 640;
-        myscale.calibrate_scale(weight, 20);
-        scale = myscale.get_scale();
+        float _weight = 640;
+        myscale.calibrate_scale(_weight, 20);
+        _scale = myscale.get_scale();
 
-        EEPROMDATA.putFloat("offset", offset);
-        EEPROMDATA.putFloat("scale", scale);
+        EEPROMDATA.putFloat("offset", _offset);
+        EEPROMDATA.putFloat("scale", _scale);
         EEPROMDATA.putBool("scaleInit", true);
 
         myMessage.statusFlag = CalibrationCompleted;
@@ -83,14 +77,14 @@ void CalibrationController::update() {
       break;
 
     case CalibrationCompleted:
-    Serial.println("CalibrationCompleted");
       if (digitalRead(tasterPin)) {
         myMessage.statusFlag = Default;
-        active = false;
+        _active = false;
+
         Serial.print("Offset: ");
-        Serial.print(offset);
+        Serial.println(_offset);
         Serial.print("Scale: ");
-        Serial.print(scale, 6);
+        Serial.println(_scale, 6);
 
         Serial.println("======= CALIBRATION ENDE =======");
       }

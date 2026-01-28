@@ -1,10 +1,9 @@
 #Mac Info ausschliessen
 MAC.txt
 Radlastwaage_Master/config.cpp
-Radlastwaage_VL/config.h
+Radlastwaage_VL/config.cpp
 
 #Ordner Libs ausschliessen
 libraries/HX711
 libraries/LiquidCrystal_I2C
-test
 .vscode/*

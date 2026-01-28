@@ -23,11 +23,10 @@ private:
   uint8_t tasterPin;
   data& myMessage;
 
-  bool active = false;
-  unsigned long stepTimestamp = 0;
-
-  float offset = 0.0f;
-  float scale = 0.0f;
+  bool _active = false;
+  unsigned long _stepTimestamp = 0;
+  int32_t _offset = 0;
+  float _scale = 0;
 };
 
 #endif
