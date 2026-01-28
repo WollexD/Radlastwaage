@@ -158,9 +158,9 @@ void loop() {
     waagen[LV]->updateScale(gew, Default, millis());
   }
 
-  if (millis() - lastChange2 > 100) {
-    lastChange2 = millis();
-    gew2 = gew2 + 1000;
-    waagen[RH]->updateScale(gew2, Default, millis());
-  }
+  // if (millis() - lastChange2 > 100) {
+  //   lastChange2 = millis();
+  //   gew2 = gew2 + 1000;
+  //   waagen[RH]->updateScale(gew2, Default, millis());
+  // }
 }

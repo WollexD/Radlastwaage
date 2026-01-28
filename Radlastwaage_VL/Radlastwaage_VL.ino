@@ -17,6 +17,8 @@
 #include <Preferences.h>
 #include <TasterControl.h>
 #include "config.h"
+#include "CalibrationController.h"
+
 
 #define RW_MODE false
 #define RO_MODE true
@@ -25,13 +27,6 @@ TasterControl oneButton;
 
 Preferences EEPROMDATA;
 esp_now_peer_info_t peerInfo;
-
-typedef struct data {
-  DeviceIndex waagenNummer;
-  long gewicht;  //in Gramm
-  StatusFlags statusFlag;
-  long timestamp;
-} data;
 
 const char* deviceIndexToString(DeviceIndex index) {
   switch (index) {
@@ -44,22 +39,12 @@ const char* deviceIndexToString(DeviceIndex index) {
   }
 }
 
-DeviceIndex getDeviceRole(uint8_t* actualMAC) {
-  for (int i = 0; i < sizeof(deviceAddresses) / sizeof(deviceAddresses[0]); i++) {
-    bool match = true;
-    for (int j = 0; j < 6; j++) {
-      if (actualMAC[j] != deviceAddresses[i][j]) {
-        match = false;
-        break;
-      }
-    }
-    if (match) {
-      return static_cast<DeviceIndex>(i);
-    }
+// DeviceIndex aus MAC ermitteln
+DeviceIndex getDeviceRole(const uint8_t* actualMAC) {
+  for (int i = 0; i < ROLE_COUNT; i++) {
+    if (compareMACs(actualMAC, deviceAddresses[i])) return static_cast<DeviceIndex>(i);
   }
-
-  // Wenn keine Übereinstimmung gefunden wurde
-  return static_cast<DeviceIndex>(-1);  // oder z. B. ein spezielles UNKNOWN
+  return ROLE_UNKNOWN;
 }
 
 
@@ -82,16 +67,20 @@ float aktuellesGewicht = 0;
 long currentTime = millis();
 long lastTransmitTime = currentTime;
 
-int currentStatus = 0;
+StatusFlags currentStatus = Default;
 
-bool compareMACs(uint8_t* mac1, uint8_t* mac2) {
+
+CalibrationController calibration(myscale, EEPROMDATA, tasterPin, myMessage);
+
+
+bool compareMACs(const uint8_t* mac1, const uint8_t* mac2) {
   for (int i = 0; i < 6; i++) {
     if (mac1[i] != mac2[i]) return false;
   }
   return true;
 }
 
-void printMAC(uint8_t* mac) {
+void printMAC(const uint8_t* mac) {
   Serial.print("{");
   for (int i = 0; i < 6; i++) {
     Serial.print("0x");
@@ -103,64 +92,15 @@ void printMAC(uint8_t* mac) {
 }
 
 void messageSent(const wifi_tx_info_t* macAddr, esp_now_send_status_t status) {
-  Serial.print("Send status: ");
-  if (status == ESP_NOW_SEND_SUCCESS) {
-    Serial.println("Success");
-  } else {
-    Serial.println("Error");
-  }
+  // Serial.print("Send status: ");
+  // if (status == ESP_NOW_SEND_SUCCESS) {
+  //   Serial.println("Success");
+  // } else {
+  //   Serial.println("Error");
+  // }
 }
 
-void calibrate() {
-  Serial.println("\n\n\n=======CALIBRATION Start ==========\n");
 
-  myMessage.statusFlag = CalibrationWaitRemoveAllWeight;  //Remove all weigt from Scale + Press Button to Continue
-  sendeDaten();
-  while (!digitalRead(tasterPin)) yield();
-
-  myMessage.statusFlag = CalibrationWorkingZeroing;  //Waage wird genullt
-  sendeDaten();
-  delay(1000);
-  //  average 20 measurements.
-  myscale.tare(20);
-  int32_t offset = myscale.get_offset();
-  Serial.print("OFFSET: ");
-  Serial.println(offset);
-  delay(1000);
-
-  myMessage.statusFlag = CalibrationWaitAfterZeroing;  //Waage ist genullt + Press Button to Continue
-  sendeDaten();
-  while (!digitalRead(tasterPin)) yield();
-
-  myMessage.statusFlag = CalibrationWaitPlaceWeight;  //Kalibrierungsgewicht plazieren + Press Button to Continue
-  sendeDaten();
-  delay(2000);
-  while (!digitalRead(tasterPin)) yield();
-
-  myMessage.statusFlag = CalibrationWorkingInProgress;  //Waage wird Kalibriert
-  sendeDaten();
-  delay(1000);
-
-  float weight = 640;  //<--- Hier Kalibrierungsgewicht anpassen
-  Serial.print("WEIGHT: ");
-  Serial.println(weight);
-  myscale.calibrate_scale(weight, 20);
-  float scale = myscale.get_scale();
-
-  Serial.print("SCALE:  ");
-  Serial.println(scale, 6);
-
-
-  EEPROMDATA.putFloat("offset", offset);  // Wert speichern
-  EEPROMDATA.putFloat("scale", scale);    // Wert speichern
-
-  myMessage.statusFlag = CalibrationCompleted;  //Waage ist Kalibriert + Press Button um Vorgang zu beenden!
-  sendeDaten();
-  while (!digitalRead(tasterPin)) yield();
-
-  Serial.println("\n=======CALIBRATION ENDE ===========");
-  currentStatus = 0;
-}
 
 //Methode zum Senden der Daten!
 void sendeDaten() {  // Sende Daten an den Empfänger
@@ -193,7 +133,11 @@ void setup() {
   Serial.println(deviceIndexToString(myRole));
 
   Serial.print("Erwartete MAC: ");
-  printMAC(deviceAddresses[myRole]);
+  if (myRole >= 0 && myRole < ROLE_COUNT && deviceAddresses[myRole] != nullptr) {
+    printMAC(deviceAddresses[myRole]);
+  } else {
+    Serial.println("—");
+  }
 
 
   if (compareMACs(actualMAC, deviceAddresses[myRole])) {
@@ -232,11 +176,11 @@ void setup() {
   if (sclInit == false) {
     EEPROMDATA.end();                            // close the namespace in RO mode and...
     EEPROMDATA.begin("savedSettings", RW_MODE);  //  reopen it in RW mode.
-    currentStatus = 100;
-    myMessage.statusFlag = currentStatus;
+    currentStatus = CalibrationRequired;
+    myMessage.statusFlag = CalibrationRequired;
     sendeDaten();
-    calibrate();
-    EEPROMDATA.putBool("scaleInit", true);
+
+    calibration.start();
   } else {
     float offset = EEPROMDATA.getFloat("offset", 0);  // Wert lesen
     float scale = EEPROMDATA.getFloat("scale", 0);    // Wert lesen
@@ -252,6 +196,10 @@ void setup() {
 }
 
 void loop() {
+
+  calibration.update();
+
+
   //-------Auswertung Taster-----------
   TasterEvent event = oneButton.update();
   switch (event) {
@@ -270,10 +218,11 @@ void loop() {
       break;
     case EXTRA_LANGER_DRUCK:
       Serial.println("Extra langer Druck");
-      currentStatus = 100;
       EEPROMDATA.end();                            // close the namespace in RO mode and...
       EEPROMDATA.begin("savedSettings", RW_MODE);  //  reopen it in RW mode.
       EEPROMDATA.remove("scaleInit");
+      currentStatus = CalibrationRequired;
+      calibration.start();
       break;
     default:
       currentStatus = Default;
@@ -322,7 +271,10 @@ void loop() {
   myMessage.waagenNummer = myRole;
   myMessage.gewicht = aktuellesGewicht;
   myMessage.timestamp = millis();
-  myMessage.statusFlag = currentStatus;
+  if (!calibration.isActive()) {
+    myMessage.statusFlag = currentStatus;
+  }
+
 
   //-------Nachricht Senden------------
   currentTime = millis();
