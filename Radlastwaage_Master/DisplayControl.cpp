@@ -335,21 +335,18 @@ void DisplayControl::DrawBGStandard() {
 }
 
 void DisplayControl::DrawBGAuto() {
-  lcd.setCursor(0, 0);
+  lcd.setCursor(0, 0);  // Zeile 0
   lcd.print("      kg");
   lcd.write(byte(2));
   lcd.write(byte(1));
   lcd.write(byte(1));
   lcd.write(byte(4));
   lcd.print("      kg");
-
-  lcd.setCursor(0, 1);
+  lcd.setCursor(0, 1);  // Zeile 1
   lcd.print("      % |  |      % ");
-
-  lcd.setCursor(0, 2);
+  lcd.setCursor(0, 2);  // Zeile 2
   lcd.print("      kg|  |      kg");
-
-  lcd.setCursor(0, 3);
+  lcd.setCursor(0, 3);  // Zeile 3
   lcd.print("      % ");
   lcd.write(byte(3));
   lcd.write(byte(6));
@@ -392,15 +389,13 @@ void DisplayControl::updateScreen() {
 
       // Nur Waagen updaten, die sich geändert haben
       for (const Scale* w : changedScales) {
-        replaceAtCoordinate(carPos[w->_scaleNumber][0], carPos[w->_scaleNumber][1], 3, 2, w->getWeight());
+        if (w->getStatus() == Default) {
+          replaceAtCoordinate(carPos[w->_scaleNumber][0], carPos[w->_scaleNumber][1], 3, 2, w->getWeight());
+          replaceAtCoordinate(carPos[w->getIndex()][0] + 1, carPos[w->getIndex()][1] + 1, 2, 2, calcProzent(w->getIndex()), FORMAT_PERCENT);
+        }
       }
       // Nach dem Durchlauf Liste leeren
       changedScales.clear();
-
-      for (const Scale* w : activeScales) {
-        replaceAtCoordinate(carPos[w->getIndex()][0] + 1, carPos[w->getIndex()][1] + 1, 2, 2, calcProzent(w->getIndex()), FORMAT_PERCENT);
-      }
-
       break;
 
     default:  //Ansicht 0 bzw. Standardansicht
