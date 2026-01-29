@@ -7,12 +7,6 @@
 #include <Scale.h>
 #include <DisplayControl.h>
 
-typedef struct data {
-  DeviceIndex waagenNummer;
-  long gewicht;
-  StatusFlags statusFlag;
-  long timestamp;
-} data;
 data waagenMsg;
 
 DisplayControl display;

@@ -1,17 +1,8 @@
-// #pragma once
+#pragma once
 #ifndef CONFIG_H
 #define CONFIG_H
 
 #include <Arduino.h>
-
-extern uint8_t MasterAddress[];
-extern uint8_t LVAddress[];
-extern uint8_t LHAddress[];
-extern uint8_t RVAddress[];
-extern uint8_t RHAddress[];
-
-// Array aus Pointern auf die bestehenden Arrays
-extern uint8_t* deviceAddresses[];
 
 // Optionale Namen für besseren Zugriff
 enum DeviceIndex {
@@ -21,7 +12,8 @@ enum DeviceIndex {
   RH = 3,
   MASTER = 4,
   Vorne = 10,
-  Hinten = 20
+  Hinten = 20,
+  ROLE_UNKNOWN = -1
 };
 
 // hier inline definieren → funktioniert überall, wo der Header eingebunden wird
@@ -34,9 +26,24 @@ inline bool operator<(DeviceIndex a, DeviceIndex b) {
   return static_cast<int>(a) < static_cast<int>(b);
 }
 
+constexpr int ROLE_COUNT = 5; // Anzahl der echten Waagen-Geräte
+
+
+// ---------- MAC-Adressen ----------
+extern const uint8_t MasterAddress[6];
+extern const uint8_t LVAddress[6];
+extern const uint8_t LHAddress[6];
+extern const uint8_t RVAddress[6];
+extern const uint8_t RHAddress[6];
+
+// Array aus Pointern auf die bestehenden Arrays
+extern const uint8_t* const deviceAddresses[ROLE_COUNT];
+
+
+
 enum StatusFlags {
   // --- Allgemein ---
-  Default = 0,
+  Default = 0,  //alles OK (kalibriert und tara)
 
   // --- Waagenstatus ---
   ScaleCalibrated = 20,
@@ -59,5 +66,15 @@ enum StatusFlags {
   CalibrationFailed = 140
 
 };
+
+// ================= STRUCT =================
+
+typedef struct data {
+  DeviceIndex waagenNummer;
+  long gewicht;
+  StatusFlags statusFlag;
+  unsigned long timestamp;
+} data;
+
 
 #endif

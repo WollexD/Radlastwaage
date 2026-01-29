@@ -16,6 +16,16 @@ enum DeviceIndex {
   ROLE_UNKNOWN = -1
 };
 
+// hier inline definieren → funktioniert überall, wo der Header eingebunden wird
+inline DeviceIndex& operator++(DeviceIndex& d) {
+  d = static_cast<DeviceIndex>(static_cast<int>(d) + 1);
+  return d;
+}
+
+inline bool operator<(DeviceIndex a, DeviceIndex b) {
+  return static_cast<int>(a) < static_cast<int>(b);
+}
+
 constexpr int ROLE_COUNT = 5; // Anzahl der echten Waagen-Geräte
 
 
@@ -63,7 +73,7 @@ typedef struct data {
   DeviceIndex waagenNummer;
   long gewicht;
   StatusFlags statusFlag;
-  long timestamp;
+  unsigned long timestamp;
 } data;
 
 

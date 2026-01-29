@@ -100,22 +100,20 @@ void messageSent(const wifi_tx_info_t* macAddr, esp_now_send_status_t status) {
   }
 }
 
-
-
 //Methode zum Senden der Daten!
 void sendeDaten() {  // Sende Daten an den Empfänger
   esp_now_send(MasterAddress, (uint8_t*)&myMessage, sizeof(myMessage));
 }
 
 void setup() {
-  //Input Pinmode
+  Serial.begin(115200);
+  Serial.println("------ Startup Booting ------");
+
+  //--------- Tasterauswertung ---------
   oneButton.begin(tasterPin);
 
-  Serial.begin(115200);
-  delay(1000);
-
+  //-------------- WLAN ----------------
   WiFi.mode(WIFI_STA);
-
   if (esp_now_init() == ESP_OK) {
     Serial.println("ESPNow Init success");
   } else {
@@ -123,11 +121,13 @@ void setup() {
     return;
   }
 
+  //--------- Auslesen MAC --------------
   uint8_t actualMAC[6];
   esp_wifi_get_mac(WIFI_IF_STA, actualMAC);
   Serial.print("Aktuelle MAC: ");
   printMAC(actualMAC);
 
+  //--------- Auslesen Rolle ------------
   myRole = getDeviceRole(actualMAC);
   Serial.print("Erkannte Rolle: ");
   Serial.println(deviceIndexToString(myRole));
@@ -139,47 +139,44 @@ void setup() {
     Serial.println("—");
   }
 
-
+  //--------- Doppelcheck Rolle MAC -----
   if (compareMACs(actualMAC, deviceAddresses[myRole])) {
     Serial.println("✅ MAC passt zur Rolle!");
   } else {
     Serial.println("❌ MAC passt NICHT zur Rolle!");
   }
 
-
-
+  //------ ESPNow Verbindung etc.-------
   esp_now_register_send_cb(messageSent);
-
   memcpy(peerInfo.peer_addr, MasterAddress, 6);
   peerInfo.channel = 0;
   peerInfo.encrypt = false;
-
   if (esp_now_add_peer(&peerInfo) != ESP_OK) {
     Serial.println("Failed to add peer");
     return;
   }
 
+  //------Default Nachricht bauen-------
+  myMessage.waagenNummer = myRole;
+  myMessage.gewicht = 0;
+  myMessage.timestamp = millis();
+  myMessage.statusFlag = Default;
+
+  //---------- Waage Verbinden ---------
   myscale.begin(dataPin, clockPin);
 
+  //---- EEPROM Open + Verarbeitung ----
   EEPROMDATA.begin("savedSettings", RO_MODE);  // Open our namespace (or create it
                                                //  if it doesn't exist) in RO mode.
 
   bool sclInit = EEPROMDATA.isKey("scaleInit");  // Test for the existence
                                                  // of the "already initialized" key.
-                                                 //------Default Nachricht bauen-------
-  myMessage.waagenNummer = myRole;
-  myMessage.gewicht = 0;
-  myMessage.timestamp = millis();
-  myMessage.statusFlag = currentStatus;
 
   //Initialisieren der Waage beim ersten Start bzw. nach Rücksetzen des Init Flags
   if (sclInit == false) {
     EEPROMDATA.end();                            // close the namespace in RO mode and...
     EEPROMDATA.begin("savedSettings", RW_MODE);  //  reopen it in RW mode.
-    currentStatus = CalibrationRequired;
     myMessage.statusFlag = CalibrationRequired;
-    sendeDaten();
-
     calibration.start();
   } else {
     float offset = EEPROMDATA.getFloat("offset", 0);  // Wert lesen
@@ -193,43 +190,43 @@ void setup() {
   //   myscale.tare();
   //   delay(3000);
   // }
+  Serial.println("----- Startup completed -----");
 }
 
 void loop() {
 
   calibration.update();
 
-
-  //-------Auswertung Taster-----------
-  TasterEvent event = oneButton.update();
-  switch (event) {
-    case KURZER_DRUCK:
-      if (!calibration.isActive()) {
+  if (!calibration.isActive()) {
+    //-------Auswertung Taster-----------
+    TasterEvent event = oneButton.update();
+    switch (event) {
+      case KURZER_DRUCK:
         myscale.tare();
-      }
-      Serial.println("Kurzer Druck");
-      break;
-    case DOPPELKLICK:
-      Serial.println("Doppelklick");
-      break;
-    case LANGER_DRUCK:
-      Serial.println("Langer Druck");
-      break;
-    case SEHR_LANGER_DRUCK:
-      Serial.println("Sehr langer Druck");
-      break;
-    case EXTRA_LANGER_DRUCK:
-      Serial.println("Extra langer Druck");
-      EEPROMDATA.end();                            // close the namespace in RO mode and...
-      EEPROMDATA.begin("savedSettings", RW_MODE);  //  reopen it in RW mode.
-      EEPROMDATA.remove("scaleInit");
-      currentStatus = CalibrationRequired;
-      calibration.start();
-      break;
-    default:
-      currentStatus = Default;
-      break;
+        Serial.println("Kurzer Druck");
+        break;
+      case DOPPELKLICK:
+        Serial.println("Doppelklick");
+        break;
+      case LANGER_DRUCK:
+        Serial.println("Langer Druck");
+        break;
+      case SEHR_LANGER_DRUCK:
+        Serial.println("Sehr langer Druck");
+        break;
+      case EXTRA_LANGER_DRUCK:
+        Serial.println("Extra langer Druck");
+        EEPROMDATA.end();                            // close the namespace in RO mode and...
+        EEPROMDATA.begin("savedSettings", RW_MODE);  //  reopen it in RW mode.
+        EEPROMDATA.remove("scaleInit");
+        calibration.start();
+        break;
+      default:
+        // myMessage.statusFlag = Default;
+        break;
+    }
   }
+
 
   //-------Gewicht Auslesen------------
   //-----+Median über Werte bilden---
@@ -270,11 +267,11 @@ void loop() {
   }
 
   //-------Nachricht "zusammenbauen"---
-  myMessage.waagenNummer = myRole;
+  // myMessage.waagenNummer = myRole; //Ändert sich ja nicht mehr
   myMessage.gewicht = aktuellesGewicht;
   myMessage.timestamp = millis();
   if (!calibration.isActive()) {
-    myMessage.statusFlag = currentStatus;
+    myMessage.statusFlag = Default;
   }
 
 
