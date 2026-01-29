@@ -42,6 +42,7 @@ public:
 
   void DrawBGStandard();
   void DrawBGAuto();
+  void DrawScaleStatus();
 
 
 
@@ -54,7 +55,7 @@ public:
 
 private:
   int _ansicht = 0;
-  int _ansichtCount = 2;  //Anzahl Ansichten
+  int _ansichtCount = 3;  //Anzahl Ansichten
   bool _needUpdate = true;
   std::vector<const Scale*> changedScales;
   std::vector<const Scale*> activeScales;

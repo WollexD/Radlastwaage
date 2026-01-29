@@ -334,6 +334,17 @@ void DisplayControl::DrawBGStandard() {
   lcd.print("RH     kg|VtlHA    %");
 }
 
+void DisplayControl::DrawScaleStatus() {
+  lcd.setCursor(0, 0);
+  lcd.print("LV         kg|      ");
+  lcd.setCursor(0, 1);
+  lcd.print("LH         kg|      ");
+  lcd.setCursor(0, 2);
+  lcd.print("RV         kg|      ");
+  lcd.setCursor(0, 3);
+  lcd.print("RH         kg|      ");
+}
+
 void DisplayControl::DrawBGAuto() {
   lcd.setCursor(0, 0);  // Zeile 0
   lcd.print("      kg");
@@ -397,7 +408,19 @@ void DisplayControl::updateScreen() {
       // Nach dem Durchlauf Liste leeren
       changedScales.clear();
       break;
+    case 2:  //Ansicht 2 (Waagenstatus + Gewicht)
+      if (bgNeedRefresh()) {
+        DrawScaleStatus();
+      }
 
+      // Nur Waagen updaten, die sich geändert haben
+      for (const Scale* w : changedScales) {
+        replaceAtCoordinate(2, w->_scaleNumber, 5, 3, w->getWeight());
+        replaceAtCoordinate(15, w->getIndex(), 3, 1, 0.0f, FORMAT_STRING, w->getStatus());
+      }
+      // Nach dem Durchlauf Liste leeren
+      changedScales.clear();
+      break;
     default:  //Ansicht 0 bzw. Standardansicht
       if (bgNeedRefresh()) {
         DrawBGStandard();
