@@ -254,7 +254,7 @@ void DisplayControl::formatFloatToChar(float floatValue, char* buffer, uint8_t i
 void DisplayControl::place5CharStatusCode(StatusFlags status) {
   switch (status) {
     case Default:
-      lcd.print(" Def.");
+      lcd.print("Def. ");
       break;
     case ScaleCalibrated:
       lcd.print("S.C.d");
@@ -393,7 +393,7 @@ void DisplayControl::updateScreen() {
   }
 
   switch (this->_ansicht) {
-    case 1:  //Ansicht 1 (Auto mit Radgewichten)
+    case 1:   //Ansicht 1 (Auto mit Radgewichten)
       if (bgNeedRefresh()) {
         DrawBGAuto();
       }
@@ -408,18 +408,25 @@ void DisplayControl::updateScreen() {
       // Nach dem Durchlauf Liste leeren
       changedScales.clear();
       break;
-    case 2:  //Ansicht 2 (Waagenstatus + Gewicht)
+    case 2:   //Ansicht 2 (Waagenstatus + Gewicht)
       if (bgNeedRefresh()) {
         DrawScaleStatus();
-      }
+        for (const auto& entry : allScales) {
+          const DeviceIndex idx = entry.first;
+          const Scale* w = entry.second;
+          replaceAtCoordinate(2, w->getIndex(), 5, 3, w->getWeight());
+          replaceAtCoordinate(15, w->getIndex(), 3, 1, 0.0f, FORMAT_STRING, w->getStatus());
+        }
+      } else {
 
-      // Nur Waagen updaten, die sich geändert haben
-      for (const Scale* w : changedScales) {
-        replaceAtCoordinate(2, w->_scaleNumber, 5, 3, w->getWeight());
-        replaceAtCoordinate(15, w->getIndex(), 3, 1, 0.0f, FORMAT_STRING, w->getStatus());
+        // Nur Waagen updaten, die sich geändert haben
+        for (const Scale* w : changedScales) {
+          replaceAtCoordinate(2, w->getIndex(), 5, 3, w->getWeight());
+          replaceAtCoordinate(15, w->getIndex(), 3, 1, 0.0f, FORMAT_STRING, w->getStatus());
+        }
+        // Nach dem Durchlauf Liste leeren
+        changedScales.clear();
       }
-      // Nach dem Durchlauf Liste leeren
-      changedScales.clear();
       break;
     default:  //Ansicht 0 bzw. Standardansicht
       if (bgNeedRefresh()) {
