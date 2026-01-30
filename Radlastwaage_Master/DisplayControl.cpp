@@ -304,6 +304,19 @@ void DisplayControl::place5CharStatusCode(StatusFlags status) {
   }
 }
 
+const char* DisplayControl::deviceIndexToString(DeviceIndex idx) {
+  switch (idx) {
+    case LV: return "LV";
+    case LH: return "LH";
+    case RV: return "RV";
+    case RH: return "RH";
+    case MASTER: return "MASTER";
+    case Vorne: return "Vorne";
+    case Hinten: return "Hinten";
+    default: return "UNKNOWN";
+  }
+}
+
 //----Ansichtensteuerung----Start----
 void DisplayControl::changeAnsicht(int newAnsicht) {
   this->_ansicht = newAnsicht;
@@ -364,6 +377,12 @@ void DisplayControl::DrawBGAuto() {
   lcd.write(byte(6));
   lcd.write(byte(5));
   lcd.print("      % ");
+}
+
+void DisplayControl::DrawCalibStatus() {
+  clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Kalibrierung von:   ");
 }
 
 bool DisplayControl::bgNeedRefresh(bool reset = true) {
@@ -427,6 +446,23 @@ void DisplayControl::updateScreen() {
       }
       // Nach dem Durchlauf Liste leeren und nach allen Waagen => außerhalb des Ifs
       changedScales.clear();
+      break;
+    case 3:  //Ansicht 3 (Kalibrierung einer Waage ausführlicher Text)
+      if (bgNeedRefresh()) {
+        DrawCalibStatus();
+      }
+      // Nur Waagen updaten, die sich geändert haben
+      for (const Scale* w : changedScales) {
+        if (w->getStatus() >= 100){
+          lcd.setCursor(0, 18);
+          lcd.print(deviceIndexToString(w->getIndex()));
+        }
+        // replaceAtCoordinate(2, w->getIndex(), 5, 3, w->getWeight());
+        // replaceAtCoordinate(15, w->getIndex(), 3, 1, 0.0f, FORMAT_STRING, w->getStatus());
+      }
+
+      // Nach dem Durchlauf Liste leeren und nach allen Waagen => außerhalb des Ifs
+      // changedScales.clear();
       break;
     default:  //Ansicht 0 bzw. Standardansicht
       if (bgNeedRefresh()) {

@@ -138,10 +138,12 @@ private:
   void formatFloatToChar(float value, char* buffer, uint8_t intDigits, uint8_t fracDigits, FormatMode mode);
   void replaceAtCoordinate(int coll, int row, int digit, int nachkommastellen, float wert, FormatMode mode, StatusFlags status);
   void place5CharStatusCode(StatusFlags status);
+  const char* deviceIndexToString(DeviceIndex idx);
 
   void DrawBGStandard();
   void DrawBGAuto();
   void DrawScaleStatus();
+  void DrawCalibStatus();
   bool bgNeedRefresh(bool reset);
 
 };
