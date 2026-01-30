@@ -25,38 +25,26 @@ class DisplayControl : public ScaleListener {
 public:
   DisplayControl();
   void begin();
-
+  
   void clear();
-
-  void calibrierungsText(int status);
-
   void changeAnsicht(int newAnsicht);
   void setStandardansicht();
   void nextAnsicht();
-
-  float calcProzent(DeviceIndex index);
-  float calcGesamtMasse();
-
-  void updateScreen();
-
-
-  void DrawBGStandard();
-  void DrawBGAuto();
-  void DrawScaleStatus();
-
-
 
   void onWeightChanged(Scale* caller) override;  //+activateScale
   void deactivateScale(Scale* caller) override;
   void addToAllScalesList(Scale* caller) override;
 
-
-
+  void updateScreen();
 
 private:
   int _ansicht = 0;
   int _ansichtCount = 3;  //Anzahl Ansichten
   bool _needUpdate = true;
+  bool _bgForcedRefreshNeeded = true;
+  unsigned long _bgRefreshTime = 10000;
+  unsigned long _bgLastRefreshTime = 0;
+
   std::vector<const Scale*> changedScales;
   std::vector<const Scale*> activeScales;
   std::map<DeviceIndex, Scale*> allScales;
@@ -65,9 +53,6 @@ private:
   const uint8_t ROWS = 20;
   const uint8_t COLL = 4;
   LiquidCrystal_I2C lcd;
-  bool _bgForcedRefreshNeeded = true;
-  unsigned long _bgRefreshTime = 10000;
-  unsigned long _bgLastRefreshTime = 0;
 
   int carPos[4][2]{ { 0, 0 }, { 0, 2 }, { 12, 0 }, { 12, 2 } };
 
@@ -142,11 +127,23 @@ private:
     B00000
   };
 
+
+
+  float getWeight(DeviceIndex idx) const ;
+  float calcProzent(DeviceIndex index);
+  float calcGesamtMasse();
+
+  void calibrierungsText(int status);
+  
   void formatFloatToChar(float value, char* buffer, uint8_t intDigits, uint8_t fracDigits, FormatMode mode);
   void replaceAtCoordinate(int coll, int row, int digit, int nachkommastellen, float wert, FormatMode mode, StatusFlags status);
-  bool bgNeedRefresh(bool reset);
-  float getWeight(DeviceIndex idx) const ;
   void place5CharStatusCode(StatusFlags status);
+
+  void DrawBGStandard();
+  void DrawBGAuto();
+  void DrawScaleStatus();
+  bool bgNeedRefresh(bool reset);
+
 };
 
 #endif
