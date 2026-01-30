@@ -268,12 +268,11 @@ void loop() {
 
   //-------Nachricht "zusammenbauen"---
   // myMessage.waagenNummer = myRole; //Ändert sich ja nicht mehr
-  myMessage.gewicht = aktuellesGewicht;
-  myMessage.timestamp = millis();
   if (!calibration.isActive()) {
+    myMessage.gewicht = aktuellesGewicht;
     myMessage.statusFlag = Default;
   }
-
+  myMessage.timestamp = millis();
 
   //-------Nachricht Senden------------
   currentTime = millis();
