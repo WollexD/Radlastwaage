@@ -14,7 +14,7 @@ public:
 
 class Scale : public Event<ScaleListener> {
 public:
-  Scale(DeviceIndex n);  // Konstruktor muss noch überarbeitet werden!
+  Scale(DeviceIndex n);
   bool getChanged() const;
   float getWeight() const;
   DeviceIndex getIndex() const;
@@ -22,7 +22,6 @@ public:
   bool scaleAlive();
   bool updateScale(float newWeight, StatusFlags newStatus, unsigned long newTimeStamp);
 
-  // bool isTimetoLong...
   DeviceIndex _scaleNumber;
   void addMeToAllScallesList();
 
@@ -40,5 +39,4 @@ private:
 
   void notifyListeners();
   void deaktivatOnListeners();
-  // void registerAt(DisplayControl& display);
 };

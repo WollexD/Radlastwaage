@@ -137,7 +137,6 @@ void DisplayControl::calibrierungsText(StatusFlags status) {
   }
 }
 
-//noch fixen
 float DisplayControl::calcProzent(DeviceIndex index) {
   //10 = Vorne 20 = hinten, 0 = LV, 1 = LH, 2 = RV, 3 = RH
   float gewichtVorne = getWeight(LV) + getWeight(RV);
@@ -346,7 +345,6 @@ void DisplayControl::changeAnsicht(int newAnsicht) {
   this->_ansicht = newAnsicht;
   this->_bgForcedRefreshNeeded = true;
   this->_bgLastRefreshTime = 0;
-  _needUpdate = true;
 }
 
 void DisplayControl::nextAnsicht() {
@@ -431,7 +429,7 @@ bool DisplayControl::bgNeedRefresh(bool reset = true) {
 
 
 void DisplayControl::updateScreen() {
-  if (!(!_needUpdate || bgNeedRefresh(false) || !changedScales.empty())) {
+  if (!(bgNeedRefresh(false) || !changedScales.empty())) {
     return;
   }
 
@@ -566,6 +564,4 @@ void DisplayControl::updateScreen() {
       replaceAtCoordinate(15, 3, 2, 1, calcProzent(Hinten), FORMAT_PERCENT);
       break;
   }
-
-  _needUpdate = false;
 }

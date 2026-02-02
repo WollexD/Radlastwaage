@@ -1,7 +1,7 @@
 #include <esp_now.h>
 #include <WiFi.h>
 #include <esp_wifi.h>
-#include "config.h"  //MAC Adressen
+#include "config.h"
 #include <Wire.h>
 #include <TasterControl.h>
 #include <Scale.h>
@@ -45,16 +45,6 @@ void messageReceived(const esp_now_recv_info* info, const uint8_t* incomingData,
     return;
   }
 
-  // Serial.print("Vergleiche mit erwartetem Gerät (");
-  // switch (myRole) {
-  //   case LV: Serial.print("LV"); break;
-  //   case LH: Serial.print("LH"); break;
-  //   case RV: Serial.print("RV"); break;
-  //   case RH: Serial.print("RH"); break;
-  //   case MASTER: Serial.print("MASTER"); break;
-  // }
-  // Serial.println(")");
-
   waagen[waagenMsg.waagenNummer]->updateScale(waagenMsg.gewicht, waagenMsg.statusFlag, waagenMsg.timestamp);
 }
 
@@ -82,8 +72,6 @@ void setup() {
     waagen[static_cast<int>(i)]->addMeToAllScallesList();
   }
 
-
-
   WiFi.mode(WIFI_STA);
 
   if (esp_now_init() == ESP_OK) {
@@ -99,18 +87,8 @@ void setup() {
 
   esp_now_register_recv_cb(messageReceived);
 
-
-  display.clear();
   display.setStandardansicht();
-
-
-  waagen[LV]->updateScale(5000.0, Default, 0);
 }
-
-long lastChange = 0;
-long lastChange2 = 0;
-long gew = 0;
-long gew2 = 0;
 
 void loop() {
   //-------Auswertung Taster-----------
@@ -144,17 +122,4 @@ void loop() {
   for (Scale* w : waagen){
     bool alive = w->scaleAlive();
   }
-
-  // delay(500);
-  if (millis() - lastChange > 200) {
-    lastChange = millis();
-    gew = gew + 1000;
-    waagen[LV]->updateScale(gew, Default, millis());
-  }
-
-  // if (millis() - lastChange2 > 100) {
-  //   lastChange2 = millis();
-  //   gew2 = gew2 + 1000;
-  //   waagen[RH]->updateScale(gew2, Default, millis());
-  // }
 }

@@ -64,10 +64,6 @@ bool Scale::updateScale(float newWeight, StatusFlags newStatus, unsigned long ne
   return false;
 }
 
-// void Scale::registerAt(DisplayControl& display) {
-//     display.addToAllScalesList(this);
-// }
-
 void Scale::deaktivatOnListeners() {
   for (int i = 0; i < listenerCount; i++) {
     listeners[i]->deactivateScale(this);

@@ -7,14 +7,6 @@
 #include <LiquidCrystal_I2C.h>
 #include "Scale.h"
 
-// enum DeviceIndex {
-//     LV     = 0,
-//     LH     = 1,
-//     RV     = 2,
-//     RH     = 3,
-//     MASTER = 4
-// };
-
 enum FormatMode {
   FORMAT_WEIGHT,
   FORMAT_PERCENT,
@@ -40,7 +32,6 @@ public:
 private:
   int _ansicht = 0;
   int _ansichtCount = 4;  //Anzahl Ansichten
-  bool _needUpdate = true;
   bool _bgForcedRefreshNeeded = true;
   unsigned long _bgRefreshTime = 10000;
   unsigned long _bgLastRefreshTime = 0;
