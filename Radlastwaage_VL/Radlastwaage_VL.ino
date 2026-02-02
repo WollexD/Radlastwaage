@@ -47,10 +47,7 @@ DeviceIndex getDeviceRole(const uint8_t* actualMAC) {
   return ROLE_UNKNOWN;
 }
 
-
-
-
-DeviceIndex myRole;  // LV, LH, RV, RH, MASTER
+DeviceIndex myRole;
 data myMessage;
 HX711 myscale;
 //  adjust pins if needed.
@@ -267,7 +264,6 @@ void loop() {
   }
 
   //-------Nachricht "zusammenbauen"---
-  // myMessage.waagenNummer = myRole; //Ändert sich ja nicht mehr
   if (!calibration.isActive()) {
     myMessage.gewicht = aktuellesGewicht;
     myMessage.statusFlag = Default;

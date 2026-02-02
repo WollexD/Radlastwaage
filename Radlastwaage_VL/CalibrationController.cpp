@@ -39,7 +39,7 @@ void CalibrationController::update() {
 
     case CalibrationWorkingZeroing:
       if (now - _stepTimestamp >= 1000) {
-        myscale.set_offset(0); // Alte Offsets löschen
+        myscale.set_offset(0);  // Alte Offsets löschen
         myscale.tare(20);
         _offset = myscale.get_offset();
 
