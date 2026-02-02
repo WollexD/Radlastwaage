@@ -54,61 +54,85 @@ void DisplayControl::addToAllScalesList(Scale* caller) {
   allScales[idx] = caller;  // überschreibt automatisch, falls schon vorhanden
 }
 
-void DisplayControl::calibrierungsText(int status) {
-  lcd.clear();
+void DisplayControl::calibrierungsText(StatusFlags status) {
 
-  //"--------------------"
-  //"
+  // Text beginnt bei Spalte 0, Zeile 1
+  const uint8_t startCol = 0;
+  const uint8_t startRow = 1;
+
   switch (status) {
-    case 100:
-      lcd.setCursor(1, 1);  //Spalte , Zeile
-      lcd.print("Calibration REQ.");
+
+    case CalibrationRequired:
+      lcd.setCursor(startCol, startRow);
+      lcd.print("Kalibrierung noetig");
       break;
-    case 110:
-      lcd.setCursor(0, 0);  //Spalte , Zeile
-      lcd.print("Remove all weigt");
-      lcd.setCursor(0, 1);  //Spalte , Zeile
-      lcd.print("from Scale + Press");
-      lcd.setCursor(0, 2);  //Spalte , Zeile
-      lcd.print("Button to Continue");
+
+    case CalibrationWaitRemoveAllWeight:
+      lcd.setCursor(startCol, startRow);
+      lcd.print("Bitte alles von der");
+      lcd.setCursor(startCol, startRow + 1);
+      lcd.print("Waage entfernen!");
+      lcd.setCursor(startCol, startRow + 2);
+      lcd.print("Taste druecken");
       break;
-    case 111:
-      lcd.setCursor(0, 1);  //Spalte , Zeile
-      lcd.print("Waage wird genullt");
+
+    case CalibrationWorkingZeroing:
+      lcd.setCursor(startCol, startRow);
+      lcd.print("Waage wird");
+      lcd.setCursor(startCol, startRow + 1);
+      lcd.print("genullt...");
       break;
-    case 112:
-      lcd.setCursor(0, 0);  //Spalte , Zeile
-      lcd.print("Waage ist genullt");
-      lcd.setCursor(0, 1);  //Spalte , Zeile
-      lcd.print("Press");
-      lcd.setCursor(0, 2);  //Spalte , Zeile
-      lcd.print("Button to Continue");
+
+    case CalibrationWaitAfterZeroing:
+      lcd.setCursor(startCol, startRow);
+      lcd.print("Waage ist");
+      lcd.setCursor(startCol, startRow + 1);
+      lcd.print("genullt");
+      lcd.setCursor(startCol, startRow + 2);
+      lcd.print("Taste druecken");
       break;
-    case 113:
-      lcd.setCursor(0, 0);  //Spalte , Zeile
-      lcd.print("Kalibrierungsgewicht");
-      lcd.setCursor(0, 1);  //Spalte , Zeile
-      lcd.print("plazieren + Press");
-      lcd.setCursor(0, 2);  //Spalte , Zeile
-      lcd.print("Button to Continue");
+
+    case CalibrationWaitPlaceWeight:
+      lcd.setCursor(startCol, startRow);
+      lcd.print("Kalibriergewicht");
+      lcd.setCursor(startCol, startRow + 1);
+      lcd.print("auflegen");
+      lcd.setCursor(startCol, startRow + 2);
+      lcd.print("Taste druecken");
       break;
-    case 114:
-      lcd.setCursor(0, 0);  //Spalte , Zeile
-      lcd.print("Waage  ");
-      lcd.setCursor(0, 1);  //Spalte , Zeile
-      lcd.print("wird");
-      lcd.setCursor(0, 2);  //Spalte , Zeile
-      lcd.print("Kalibriert");
+
+    case CalibrationWorkingInProgress:
+      lcd.setCursor(startCol, startRow);
+      lcd.print("Kalibrierung");
+      lcd.setCursor(startCol, startRow + 1);
+      lcd.print("laeuft...");
       break;
-    case 115:
-      lcd.setCursor(0, 0);  //Spalte , Zeile
-      lcd.print("Waage ist Kalibriert");
-      lcd.setCursor(0, 1);  //Spalte , Zeile
-      lcd.print("Press Button to");
-      lcd.setCursor(0, 2);  //Spalte , Zeile
-      lcd.print("End Calibration!");
+
+    case CalibrationCompleted:
+      lcd.setCursor(startCol, startRow);
+      lcd.print("Kalibrierung");
+      lcd.setCursor(startCol, startRow + 1);
+      lcd.print("abgeschlossen");
+      lcd.setCursor(startCol, startRow + 2);
+      lcd.print("Taste zum beenden");
       break;
+
+    case CalibrationFailed:
+      lcd.setCursor(startCol, startRow);
+      lcd.print("Kalibrierung");
+      lcd.setCursor(startCol, startRow + 1);
+      lcd.print("fehlgeschlagen");
+      lcd.setCursor(startCol, startRow + 2);
+      lcd.print("Neu versuchen");
+      break;
+
     default:
+      lcd.setCursor(startCol, startRow);
+      lcd.print("Unbekannter");
+      lcd.setCursor(startCol, startRow + 1);
+      lcd.print("Status");
+      lcd.setCursor(startCol, startRow + 2);
+      lcd.print("Bitte warten ...");
       break;
   }
 }
@@ -304,6 +328,19 @@ void DisplayControl::place5CharStatusCode(StatusFlags status) {
   }
 }
 
+const char* DisplayControl::deviceIndexToString(DeviceIndex idx) {
+  switch (idx) {
+    case LV: return "LV";
+    case LH: return "LH";
+    case RV: return "RV";
+    case RH: return "RH";
+    case MASTER: return "MASTER";
+    case Vorne: return "Vorne";
+    case Hinten: return "Hinten";
+    default: return "UNKNOWN";
+  }
+}
+
 //----Ansichtensteuerung----Start----
 void DisplayControl::changeAnsicht(int newAnsicht) {
   this->_ansicht = newAnsicht;
@@ -364,6 +401,12 @@ void DisplayControl::DrawBGAuto() {
   lcd.write(byte(6));
   lcd.write(byte(5));
   lcd.print("      % ");
+}
+
+void DisplayControl::DrawCalibStatus() {
+  clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Kalibrierung von:   ");
 }
 
 bool DisplayControl::bgNeedRefresh(bool reset = true) {
@@ -428,6 +471,70 @@ void DisplayControl::updateScreen() {
       // Nach dem Durchlauf Liste leeren und nach allen Waagen => außerhalb des Ifs
       changedScales.clear();
       break;
+    case 3:  //Ansicht 3 (Kalibrierung einer Waage)
+      if (bgNeedRefresh()) {
+        DrawCalibStatus();
+        if (_inCalibration != nullptr) {
+          lcd.setCursor(18, 0);
+          lcd.print(deviceIndexToString(_inCalibration->getIndex()));
+          calibrierungsText(_inCalibration->getStatus());
+        } else {
+          lcd.setCursor(18, 0);
+          lcd.print("XX");
+          lcd.setCursor(0, 2);
+          lcd.print("keine Waage braucht");
+          lcd.setCursor(0, 3);
+          lcd.print("eine Kalibrierung");
+        }
+      }
+
+      // 🔹 1. Noch keine Waage in Kalibrierung → auswählen
+      if (_inCalibration == nullptr) {
+        for (const Scale* w : changedScales) {
+          if (w->getStatus() >= 100) {  // Auswahl-Kriterium
+            _inCalibration = w;
+            _calibrationStartTime = millis();
+            DrawCalibStatus();
+            lcd.setCursor(18, 0);
+            lcd.print(deviceIndexToString(w->getIndex()));
+            calibrierungsText(w->getStatus());
+            _lastClibStatus = w->getStatus();
+            break;  // NUR EINE Waage auswählen
+          }
+        }
+      }
+
+      // 🔹 2. Eine Waage ist aktiv → weiter bearbeiten
+      if (_inCalibration != nullptr) {
+        for (const Scale* w : changedScales) {
+          if ((w == _inCalibration) && (w->getStatus() != _lastClibStatus)) {
+            // Anzeige / Logik nur für diese Waage
+            DrawCalibStatus();
+            lcd.setCursor(18, 0);
+            lcd.print(deviceIndexToString(_inCalibration->getIndex()));
+            calibrierungsText(_inCalibration->getStatus());
+            _lastClibStatus = _inCalibration->getStatus();
+            break;
+          }
+        }
+
+        // ✅ Kalibrierung fertig?
+        if (_inCalibration->getStatus() == Default) {  // Beispiel "fertig"
+          _inCalibration = nullptr;                    // Reset
+          _lastClibStatus = Default;
+        }
+
+        // ⏱ Timeout prüfen
+        else if (millis() - _calibrationStartTime >= _CALIBRATION_TIMEOUT) {
+          _inCalibration = nullptr;  // Timeout-Reset
+          _lastClibStatus = Default;
+        }
+      }
+
+      // Liste nach dem Durchlauf leeren
+      changedScales.clear();
+      break;
+
     default:  //Ansicht 0 bzw. Standardansicht
       if (bgNeedRefresh()) {
         DrawBGStandard();

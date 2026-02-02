@@ -25,7 +25,7 @@ class DisplayControl : public ScaleListener {
 public:
   DisplayControl();
   void begin();
-  
+
   void clear();
   void changeAnsicht(int newAnsicht);
   void setStandardansicht();
@@ -39,11 +39,16 @@ public:
 
 private:
   int _ansicht = 0;
-  int _ansichtCount = 3;  //Anzahl Ansichten
+  int _ansichtCount = 4;  //Anzahl Ansichten
   bool _needUpdate = true;
   bool _bgForcedRefreshNeeded = true;
   unsigned long _bgRefreshTime = 10000;
   unsigned long _bgLastRefreshTime = 0;
+
+  const Scale* _inCalibration = nullptr;
+  StatusFlags _lastClibStatus = Default;
+  unsigned long _calibrationStartTime = 0;
+  const unsigned long _CALIBRATION_TIMEOUT = 10000;  // 10 Sekunden
 
   std::vector<const Scale*> changedScales;
   std::vector<const Scale*> activeScales;
@@ -129,21 +134,22 @@ private:
 
 
 
-  float getWeight(DeviceIndex idx) const ;
+  float getWeight(DeviceIndex idx) const;
   float calcProzent(DeviceIndex index);
   float calcGesamtMasse();
 
-  void calibrierungsText(int status);
-  
+  void calibrierungsText(StatusFlags status);
+
   void formatFloatToChar(float value, char* buffer, uint8_t intDigits, uint8_t fracDigits, FormatMode mode);
   void replaceAtCoordinate(int coll, int row, int digit, int nachkommastellen, float wert, FormatMode mode, StatusFlags status);
   void place5CharStatusCode(StatusFlags status);
+  const char* deviceIndexToString(DeviceIndex idx);
 
   void DrawBGStandard();
   void DrawBGAuto();
   void DrawScaleStatus();
+  void DrawCalibStatus();
   bool bgNeedRefresh(bool reset);
-
 };
 
 #endif
