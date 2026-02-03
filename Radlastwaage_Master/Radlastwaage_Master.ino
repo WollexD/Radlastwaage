@@ -102,8 +102,8 @@ void loop() {
       Serial.println("Doppelklick");
       break;
     case LANGER_DRUCK:
+      display.nextAnsicht();
       Serial.println("Langer Druck");
-      waagen[LH]->updateScale(0.0f, ErrorCalibration, millis());
       break;
     case SEHR_LANGER_DRUCK:
       Serial.println("Sehr langer Druck");
@@ -119,7 +119,7 @@ void loop() {
     display.updateScreen();
   }
 
-  for (Scale* w : waagen){
+  for (Scale* w : waagen) {
     bool alive = w->scaleAlive();
   }
 }
