@@ -1,15 +1,3 @@
-// 1. Start - Calibration durchführen und in EEPROM speichern + Startflag setzen
-// n > 1. Starts Wage Starten und mit Werten aus EEPROM Initialisieren und auf null (Tara) ausführen / Sollte dabei Taster während Start gedrückt sein Tara überspringen
-
-// Taster kurz => Tara
-// Taster > 10sec => Calibration Flag zurücksetzen => beim nächsten Start neue Calibrierung
-
-// Auswahl der Waagennummer nach MAC
-
-
-
-//Nachrichten aus Calibration Funktion in Zahlen übersetzen und im Master hinterlegen
-
 #include <esp_now.h>
 #include <WiFi.h>
 #include <esp_wifi.h>
@@ -18,7 +6,6 @@
 #include <TasterControl.h>
 #include "config.h"
 #include "CalibrationController.h"
-
 
 #define RW_MODE false
 #define RO_MODE true
