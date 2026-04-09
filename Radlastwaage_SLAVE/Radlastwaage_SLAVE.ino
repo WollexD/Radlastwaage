@@ -4,6 +4,7 @@
 #include <HX711.h>
 #include <Preferences.h>
 #include <TasterControl.h>
+#include <LED.h>
 #include "config.h"
 #include "CalibrationController.h"
 
@@ -41,6 +42,9 @@ HX711 myscale;
 uint8_t dataPin = 17;
 uint8_t clockPin = 16;
 uint8_t tasterPin = 19;
+uint8_t ledPin = 18;
+
+LED statusLED(ledPin);
 
 const int MEDIAN_SIZE = 9;
 float medianBuffer[MEDIAN_SIZE] = { 0 };
@@ -79,8 +83,10 @@ void messageSent(const wifi_tx_info_t* macAddr, esp_now_send_status_t status) {
   Serial.print("Send status: ");
   if (status == ESP_NOW_SEND_SUCCESS) {
     Serial.println("Success");
+    statusLED.setMode(2);
   } else {
     Serial.println("Error");
+    statusLED.setMode(4);
   }
 }
 
@@ -95,6 +101,8 @@ void setup() {
 
   //--------- Tasterauswertung ---------
   oneButton.begin(tasterPin);
+  statusLED.begin();
+  statusLED.setMode(2);
 
   //-------------- WLAN ----------------
   WiFi.mode(WIFI_STA);
@@ -174,12 +182,14 @@ void setup() {
   //   myscale.tare();
   //   delay(3000);
   // }
+
   Serial.println("----- Startup completed -----");
 }
 
 void loop() {
 
   calibration.update();
+  statusLED.update();
 
   if (!calibration.isActive()) {
     //-------Auswertung Taster-----------
@@ -204,9 +214,12 @@ void loop() {
         EEPROMDATA.begin("savedSettings", RW_MODE);  //  reopen it in RW mode.
         EEPROMDATA.remove("scaleInit");
         calibration.start();
+        statusLED.setMode(5);
+        statusLED.lockMode(true);
         break;
       default:
         // myMessage.statusFlag = Default;
+        statusLED.lockMode(false);
         break;
     }
   }
@@ -259,7 +272,7 @@ void loop() {
 
   //-------Nachricht Senden------------
   currentTime = millis();
-  if (currentTime > lastTransmitTime + 100) {
+  if (currentTime > lastTransmitTime + 200) {
     sendeDaten();
     lastTransmitTime = currentTime;
   }
