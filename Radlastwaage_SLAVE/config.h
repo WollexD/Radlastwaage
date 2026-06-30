@@ -4,6 +4,8 @@
 
 #include <Arduino.h>
 
+const float calibWeight = 22000; //<--- Kalibrierungsgewicht !!
+
 // Optionale Namen für besseren Zugriff
 enum DeviceIndex {
   LV = 0,

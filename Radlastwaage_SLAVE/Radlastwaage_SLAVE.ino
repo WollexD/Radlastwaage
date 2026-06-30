@@ -272,7 +272,7 @@ void loop() {
 
   //-------Nachricht Senden------------
   currentTime = millis();
-  if (currentTime > lastTransmitTime + 200) {
+  if (currentTime > lastTransmitTime + 300) {
     sendeDaten();
     lastTransmitTime = currentTime;
   }

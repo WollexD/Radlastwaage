@@ -64,7 +64,7 @@ void CalibrationController::update() {
     case CalibrationWorkingInProgress:
       if (now - _stepTimestamp >= 1000) {
 
-        float _weight = 640;
+        float _weight = calibWeight;
         myscale.calibrate_scale(_weight, 20);
         _scale = myscale.get_scale();
 
